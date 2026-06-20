@@ -81,6 +81,7 @@ export interface FileViewerDocxOptions {
   worker?: boolean;
   workerUrl?: string;
   progressive?: boolean;
+  visualPagination?: boolean;
   workerTimeout?: number;
 }
 

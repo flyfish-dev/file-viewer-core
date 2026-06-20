@@ -76,11 +76,15 @@ const isTargetHTMLElement = (value: unknown, target: HTMLDivElement): value is H
 
 const shouldUseDocxWorker = (target: HTMLDivElement, context?: FileRenderContext) => {
   const view = getTargetWindow(target)
-  return context?.options?.docx?.worker !== false && typeof view?.Worker === 'function'
+  return context?.options?.docx?.worker === true && typeof view?.Worker === 'function'
 }
 
 const shouldMountDocxProgressively = (context?: FileRenderContext) => {
-  return context?.options?.docx?.progressive !== false
+  return context?.options?.docx?.progressive === true
+}
+
+const shouldPaginateOversizedDocxSections = (context?: FileRenderContext) => {
+  return context?.options?.docx?.visualPagination === true
 }
 
 const waitDocxMountFrame = (target: HTMLDivElement) => {
@@ -400,10 +404,12 @@ function wrapDocxPages(target: HTMLDivElement) {
   })
 }
 
-function makeDocxResponsive(target: HTMLDivElement) {
+function makeDocxResponsive(target: HTMLDivElement, context?: FileRenderContext) {
   target.classList.add('docx-fit-viewer')
   const style = installResponsiveStyle(target)
-  paginateOversizedSections(target)
+  if (shouldPaginateOversizedDocxSections(context)) {
+    paginateOversizedSections(target)
+  }
   const frames = wrapDocxPages(target)
   const view = getTargetWindow(target)
   const ResizeObserverCtor = view?.ResizeObserver
@@ -581,7 +587,7 @@ export default async function(buffer: ArrayBuffer, target: HTMLDivElement, conte
     })
   }
 
-  const disposeResponsive = makeDocxResponsive(target)
+  const disposeResponsive = makeDocxResponsive(target, context)
   context?.registerExportAdapter?.({
     includeDocumentStyles: false,
     beforeSnapshot: () => {

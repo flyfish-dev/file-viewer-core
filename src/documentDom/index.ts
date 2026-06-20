@@ -5,7 +5,7 @@ export {
   findFileViewerAnchorForElement,
   getCurrentFileViewerDocumentAnchor,
   scrollToFileViewerDocumentAnchor,
-} from './documentDom/anchors';
+} from './anchors';
 export {
   findFileViewerSearchProvider,
   findFileViewerZoomProvider,
@@ -13,11 +13,11 @@ export {
   registerFileViewerZoomProvider,
   unregisterFileViewerSearchProvider,
   unregisterFileViewerZoomProvider,
-} from './documentDom/providers';
+} from './providers';
 export type {
   FileViewerSearchProviderHost,
   FileViewerZoomProviderHost,
-} from './documentDom/providers';
+} from './providers';
 export {
   DEFAULT_FILE_VIEWER_SCROLL_CONTAINER_CANDIDATE_SELECTOR,
   DEFAULT_FILE_VIEWER_SCROLL_CONTAINER_SELECTOR,
@@ -25,7 +25,7 @@ export {
   getFileViewerScrollableRange,
   isFileViewerScrollableElement,
   resolveFileViewerScrollContainer,
-} from './documentDom/scroll';
+} from './scroll';
 export type {
   ResolveFileViewerScrollContainerOptions,
-} from './documentDom/scroll';
+} from './scroll';

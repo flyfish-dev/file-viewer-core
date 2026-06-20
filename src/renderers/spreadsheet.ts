@@ -94,11 +94,11 @@ const spreadsheetStyle = `
 .excel-wrapper .loading-spinner{width:28px;height:28px;border-radius:999px;border:3px solid rgba(33,163,102,.16);border-top-color:#21a366;animation:sheet-loading-spin .8s linear infinite}
 .excel-wrapper .error{position:absolute;left:50%;top:50%;z-index:1000;transform:translate(-50%,-50%);max-width:min(520px,calc(100% - 48px));padding:16px 18px;border-radius:16px;background:#fff7ed;color:#9a3412;border:1px solid rgba(234,88,12,.18);box-shadow:0 18px 42px rgba(154,52,18,.12);font-size:14px;line-height:1.6}
 .excel-wrapper .toolbar{min-height:44px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border-top:1px solid #e5e7eb;background:#f8fafc}
-.excel-wrapper .btn-group{min-width:0;display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:thin}
-.excel-wrapper .sheet-tab{max-width:220px;height:30px;border:1px solid transparent;border-radius:8px;padding:0 12px;background:transparent;color:#526173;font:inherit;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.excel-wrapper .btn-group{min-width:0;max-width:100%;flex:1 1 auto;display:flex;align-items:center;gap:6px;overflow-x:auto;overflow-y:hidden;scrollbar-gutter:stable;scrollbar-width:thin;overscroll-behavior-x:contain}
+.excel-wrapper .sheet-tab{flex:0 0 auto;width:max-content;min-width:72px;max-width:min(260px,70vw);height:30px;border:1px solid transparent;border-radius:8px;padding:0 12px;background:transparent;color:#526173;font:inherit;font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .excel-wrapper .sheet-tab:hover{background:#edf2f7}
 .excel-wrapper .sheet-tab.active{border-color:rgba(33,163,102,.28);background:rgba(33,163,102,.12);color:#137347}
-.excel-wrapper .summary{flex-shrink:0;color:#64748b;font-size:12px;font-weight:700;white-space:nowrap}
+.excel-wrapper .summary{flex:0 0 auto;max-width:42%;overflow:hidden;color:#64748b;font-size:12px;font-weight:700;white-space:nowrap;text-overflow:ellipsis}
 .excel-wrapper .hidden{display:none!important}
 .file-viewer[data-viewer-theme='dark'] .excel-wrapper{background:#0f172a;color:#e5e7eb}
 .file-viewer[data-viewer-theme='dark'] .excel-wrapper .table-wrapper{background:#111827}
@@ -108,7 +108,7 @@ const spreadsheetStyle = `
 @media (prefers-color-scheme:dark){.file-viewer[data-viewer-theme='system'] .excel-wrapper{background:#0f172a;color:#e5e7eb}.file-viewer[data-viewer-theme='system'] .excel-wrapper .table-wrapper{background:#111827}.file-viewer[data-viewer-theme='system'] .excel-wrapper .toolbar{background:#111827;border-color:rgba(148,163,184,.22)}.file-viewer[data-viewer-theme='system'] .excel-wrapper .sheet-tab{color:#cbd5e1}.file-viewer[data-viewer-theme='system'] .excel-wrapper .sheet-tab:hover{background:#1f2937}}
 @keyframes sheet-loading-spin{to{transform:rotate(360deg)}}
 @keyframes sheet-loading-pulse{0%,100%{opacity:.55;transform:scale(.9)}50%{opacity:1;transform:scale(1)}}
-@media (max-width:720px){.excel-wrapper .toolbar{align-items:stretch;flex-direction:column}.excel-wrapper .summary{white-space:normal}.excel-wrapper .sheet-loading{left:12px;right:12px;bottom:58px;justify-content:center}.excel-wrapper .loading-card{margin:18px;flex-direction:column;text-align:center}}
+@media (max-width:720px){.excel-wrapper .toolbar{align-items:stretch;flex-direction:column}.excel-wrapper .btn-group{flex:0 0 auto}.excel-wrapper .summary{max-width:none;white-space:normal}.excel-wrapper .sheet-loading{left:12px;right:12px;bottom:58px;justify-content:center}.excel-wrapper .loading-card{margin:18px;flex-direction:column;text-align:center}}
 `;
 
 const loadEVirtTable = async (): Promise<EVirtTableConstructor> => {
@@ -242,7 +242,7 @@ const createSpreadsheetWorkerFactory = (
   context?: FileRenderContext
 ): FileViewerWorkerFactory => {
   return () => {
-    if (context?.options?.spreadsheet?.worker === false) {
+    if (context?.options?.spreadsheet?.worker !== true) {
       return createMainThreadSpreadsheetWorker(target);
     }
 
