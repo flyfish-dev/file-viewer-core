@@ -1,5 +1,5 @@
 import JSZip from 'jszip';
-import type { FileViewerRenderedInstance } from '../types';
+import type { FileViewerRenderedInstance } from '../contracts/types';
 
 interface OpenDocumentPage {
   title: string;

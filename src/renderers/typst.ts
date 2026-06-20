@@ -2,20 +2,20 @@ import { $typst } from '@myriaddreamin/typst.ts';
 import {
   resolveFileViewerTypstCompilerWasmUrl,
   resolveFileViewerTypstRendererWasmUrl,
-} from '../assets';
+} from '../platform/assets';
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider,
-} from '../documentDom';
-import { createFileViewerZoomChangeEmitter } from '../documentZoom';
-import { formatCssPixels, type PrintPageSize } from '../printLayout';
+} from '../features/document/dom';
+import { createFileViewerZoomChangeEmitter } from '../features/document/zoom';
+import { formatCssPixels, type PrintPageSize } from '../output/printLayout';
 import { readFileViewerText } from '../source';
 import type {
   FileRenderContext,
   FileRenderExportAdapter,
   FileViewerRenderedInstance,
   FileViewerZoomState,
-} from '../types';
+} from '../contracts/types';
 
 declare global {
   interface Window {

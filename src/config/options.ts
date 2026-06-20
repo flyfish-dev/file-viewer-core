@@ -4,7 +4,7 @@ import type {
   FileViewerOptions,
   FileViewerThemeMode,
   FileViewerToolbarOptions,
-} from './types';
+} from '../contracts/types';
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };

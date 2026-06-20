@@ -1,7 +1,12 @@
+// Public browser-facing entrypoint.
+//
+// Keep this file as a compatibility barrel only: framework packages import from
+// here, while implementation details live in the domain folders below
+// (`source`, `rendering`, `viewer`, `features`, `lifecycle`, `platform`).
 import type {
   FileRenderContext,
   FileViewerRenderedInstance,
-} from './types';
+} from './contracts/types';
 
 export {
   DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH,
@@ -36,7 +41,7 @@ export {
   IMAGE_EXTENSIONS,
   MODEL_EXTENSIONS,
   TEXT_EXTENSIONS,
-} from './formats';
+} from './registry/formats';
 export {
   DEFAULT_FILE_VIEWER_TEXT_CHUNK_OVERLAP,
   DEFAULT_FILE_VIEWER_TEXT_CHUNK_SIZE,
@@ -46,7 +51,7 @@ export {
   createFileViewerZoomState,
   normalizeFileViewerAiOptions,
   normalizeFileViewerSearchOptions,
-} from './document';
+} from './features/document/model';
 export {
   DEFAULT_FILE_VIEWER_SEARCH_ACTIVE_CLASS,
   DEFAULT_FILE_VIEWER_SEARCH_MATCH_CLASS,
@@ -59,14 +64,14 @@ export {
   observeFileViewerDomSearchController,
   runFileViewerDomSearchControllerAction,
   syncFileViewerDomSearchControllerState,
-} from './documentSearch';
+} from './features/document/search';
 export type {
   FileViewerDocumentAnchorsTarget,
   FileViewerDomSearchController,
   FileViewerDomSearchControllerActionHandlers,
   FileViewerDomSearchControllerStateTarget,
   MutableFileViewerSearchState,
-} from './documentSearch';
+} from './features/document/search';
 export {
   createFileViewerDocumentFeatureActions,
   createFileViewerDocumentFeatureControllerActionHandlers,
@@ -75,7 +80,7 @@ export {
   dispatchFileViewerLocationChange,
   dispatchFileViewerSearchChange,
   resolveFileViewerLocationChangeAnchor,
-} from './documentEvents';
+} from './features/document/events';
 export type {
   CreateFileViewerDocumentChangeSnapshotInput,
   FileViewerDocumentFeatureActionOptions,
@@ -88,7 +93,7 @@ export type {
   CreateFileViewerDocumentFeatureActionsInput,
   CreateFileViewerDocumentFeatureControllerActionHandlersInput,
   ResolveFileViewerLocationChangeAnchorInput,
-} from './documentEvents';
+} from './features/document/events';
 export {
   applyFileViewerZoomState,
   clearFileViewerZoomControllerProvider,
@@ -102,12 +107,12 @@ export {
   refreshFileViewerZoomControllerProvider,
   runFileViewerZoomControllerAction,
   syncFileViewerZoomControllerState,
-} from './documentZoom';
+} from './features/document/zoom';
 export type {
   FileViewerZoomController,
   FileViewerZoomControllerActionHandlers,
   MutableFileViewerZoomState,
-} from './documentZoom';
+} from './features/document/zoom';
 export {
   DEFAULT_FILE_VIEWER_ANCHOR_EXCLUDE_SELECTOR,
   DEFAULT_FILE_VIEWER_ANCHOR_SELECTOR,
@@ -127,7 +132,7 @@ export {
   scrollToFileViewerDocumentAnchor,
   unregisterFileViewerSearchProvider,
   unregisterFileViewerZoomProvider,
-} from './documentDom';
+} from './features/document/dom';
 export {
   buildFileViewerRenderedHtmlDocument,
   buildExportHtmlDocument,
@@ -140,7 +145,7 @@ export {
   waitForFileViewerImages,
   waitForFileViewerNextPaint,
   waitForFileViewerPrintWindowReady,
-} from './export';
+} from './output/export';
 export {
   DEFAULT_FILE_VIEWER_DOWNLOAD_FILENAME,
   DEFAULT_FILE_VIEWER_EXPORT_FILENAME,
@@ -158,7 +163,7 @@ export {
   resolveFileViewerOperationActionErrorMessage,
   resolveFileViewerOperationFilename,
   resolveFileViewerOriginalFilename,
-} from './viewerOperations';
+} from './viewer/operations';
 export type {
   CreateFileViewerOperationActionHandlersInput,
   FileViewerOperationActionErrorFormatter,
@@ -168,8 +173,8 @@ export type {
   FileViewerOperationActionHandlers,
   FileViewerPublicOperationActionHandlers,
   ResolveFileViewerOperationActionErrorMessageInput,
-} from './viewerOperations';
-export { createRendererRegistry } from './registry';
+} from './viewer/operations';
+export { createRendererRegistry } from './registry/registry';
 export {
   coreBrowserRendererHandlers,
   createFileViewerCoreRendererRegistry,
@@ -398,7 +403,7 @@ export {
   needsDedicatedPrintAdapter,
   NON_PRINTABLE_EXTENSIONS,
   resolvePrintAvailability,
-} from './capabilities';
+} from './registry/capabilities';
 export {
   FILE_VIEWER_LIFECYCLE_HOOKS,
   FILE_VIEWER_BEFORE_OPERATION_ERROR_PREFIX,
@@ -443,7 +448,7 @@ export {
   runFileViewerToolbarAvailabilitySync,
   runFileViewerToolbarZoomSync,
   serializeFileViewerContext,
-} from './operations';
+} from './lifecycle/operations';
 export type {
   BuildFileViewerOperationContextFromLifecycleStateInput,
   CreateFileViewerLifecycleActionsInput,
@@ -469,7 +474,7 @@ export type {
   RunFileViewerActiveUnloadStartInput,
   RunFileViewerToolbarAvailabilitySyncInput,
   RunFileViewerToolbarZoomSyncInput,
-} from './operations';
+} from './lifecycle/operations';
 export {
   FALLBACK_FILE_VIEWER_LOADING_THEME,
   FILE_VIEWER_LOADING_THEME_MAP,
@@ -483,21 +488,21 @@ export {
   runFileViewerLoadingExtensionSync,
   resolveFileViewerLoadingTheme,
   syncFileViewerLoadingControllerState,
-} from './loading';
+} from './viewer/loading';
 export type {
   FileViewerLoadingController,
   FileViewerLoadingControllerActionHandlers,
   RunFileViewerLoadingExtensionSyncInput,
-} from './loading';
+} from './viewer/loading';
 export {
   createFileViewerLifecycleFacade,
-} from './lifecycleFacade';
+} from './lifecycle/facade';
 export type {
   BuildFileViewerLifecycleFacadeLoadStartStateInput,
   BuildFileViewerLifecycleFacadeRenderCompleteStateInput,
   CreateFileViewerLifecycleFacadeInput,
   FileViewerLifecycleFacade,
-} from './lifecycleFacade';
+} from './lifecycle/facade';
 export {
   getFileViewerOptionsSearchParam,
   normalizeFileViewerTheme,
@@ -505,17 +510,17 @@ export {
   sanitizeFileViewerOptions,
   serializeFileViewerOptions,
   setFileViewerOptionsSearchParam,
-} from './options';
+} from './config/options';
 export {
   resolveFileViewerPresentationState,
-} from './presentation';
+} from './presentation/state';
 export type {
   FileViewerPresentationState,
   ResolveFileViewerPresentationStateInput,
-} from './presentation';
+} from './presentation/state';
 export {
   createFileViewerRendererDispatcher,
-} from './rendererDispatcher';
+} from './rendering/dispatcher';
 export {
   buildFileRenderContextFromLoadContext,
   applyFileViewerRenderSurfaceState,
@@ -541,7 +546,7 @@ export {
   runFileViewerRenderSurfaceClear,
   runFileViewerRenderSurfaceMount,
   renderFileViewerHandler,
-} from './rendererHandler';
+} from './rendering/handler';
 export type {
   CreateFileViewerRenderSurfaceActionHandlersInput,
   CreateFileViewerRenderReadinessTargetInput,
@@ -557,7 +562,7 @@ export type {
   ResolveFileViewerRenderSessionDisposeErrorMessageInput,
   RunFileViewerRenderSurfaceClearInput,
   RunFileViewerRenderSurfaceMountInput,
-} from './rendererHandler';
+} from './rendering/handler';
 export {
   DEFAULT_FILE_VIEWER_SOURCE_FILENAME,
   decodeFilename,
@@ -583,10 +588,10 @@ export {
   createFileViewerUnsupportedState,
   formatFileViewerErrorMessage,
   normalizeFileViewerErrorMessage,
-} from './state';
+} from './viewer/state';
 export type {
   FileViewerErrorMessageFormatter,
-} from './state';
+} from './viewer/state';
 export {
   buildFileViewerWatermarkBackgroundImage,
   buildFileViewerWatermarkInlineStyle,
@@ -594,11 +599,11 @@ export {
   buildFileViewerWatermarkSvg,
   normalizeFileViewerWatermark,
   resolveFileViewerWatermarkPresentationState,
-} from './watermark';
+} from './features/watermark';
 export type {
   FileViewerWatermarkPresentationState,
   FileViewerWatermarkStyle,
-} from './watermark';
+} from './features/watermark';
 export {
   cancelFileViewerPreviewRequest,
   DEFAULT_FILE_VIEWER_STREAMING_PDF_FILENAME,
@@ -650,7 +655,7 @@ export {
   runFileViewerReadAndRenderFile,
   runFileViewerStreamingPdfPreview,
   shouldStreamPdfUrl,
-} from './sourceLoading';
+} from './source/loading';
 export type {
   CreateFileViewerPreviewStateTargetInput,
   CreateFileViewerSourceLoadingActionHandlersInput,
@@ -708,13 +713,13 @@ export type {
   ResolveFileViewerPreviewRequestReasonInput,
   ReportFileViewerMissingRemoteDataInput,
   ReportFileViewerPreviewLoadErrorInput,
-} from './sourceLoading';
-export { createViewer } from './viewer';
+} from './source/loading';
+export { createViewer } from './viewer/createViewer';
 export {
   WorkerRefImpl,
   createFileViewerWorkerController,
   refWorker,
-} from './worker';
+} from './platform/worker';
 export type {
   FileViewerRendererAssetDefinition,
   FileViewerRendererAssetKind,
@@ -739,12 +744,12 @@ export type {
   RunFileViewerBeforeOperationInput,
   SerializedFileViewerContext,
   ResolveFileViewerLifecycleHookErrorMessageInput,
-} from './operations';
+} from './lifecycle/operations';
 export type {
   FileViewerLoadingState,
   FileViewerLoadingTheme,
   MutableFileViewerLoadingState,
-} from './loading';
+} from './viewer/loading';
 export type {
   ExecuteFileViewerDownloadOperationInput,
   ExecuteFileViewerExportHtmlOperationInput,
@@ -752,17 +757,17 @@ export type {
   FileViewerOperationExecutorBase,
   FileViewerOriginalSourceState,
   ResolveFileViewerOperationFilenameInput,
-} from './viewerOperations';
+} from './viewer/operations';
 export type {
   FileViewerSerializableCadOptions,
   FileViewerSerializableOptions,
   FileViewerSerializableToolbarOptions,
-} from './options';
+} from './config/options';
 export type {
   CreateFileViewerRendererDispatcherOptions,
   FileViewerRendererDispatcher,
   FileViewerRendererHandlerEntry,
-} from './rendererDispatcher';
+} from './rendering/dispatcher';
 export type {
   CreateFileViewerRenderTargetOptions,
   CreateFileRenderHandlerRegistryOptions,
@@ -771,25 +776,25 @@ export type {
   FileRenderHandlerRegistryResult,
   FileRenderHandlerRendererSession,
   RenderFileViewerHandlerInput,
-} from './rendererHandler';
+} from './rendering/handler';
 export type {
   FileViewerSearchProviderHost,
   ResolveFileViewerScrollContainerOptions,
   FileViewerZoomProviderHost,
-} from './documentDom';
+} from './features/document/dom';
 export type {
   CreateFileViewerDomSearchControllerOptions,
   FileViewerInternalSearchMatch,
-} from './documentSearch';
+} from './features/document/search';
 export type {
   CreateFileViewerZoomControllerOptions,
   FileViewerZoomOperation,
-} from './documentZoom';
-export type { CreateViewerOptions } from './viewer';
+} from './features/document/zoom';
+export type { CreateViewerOptions } from './viewer/createViewer';
 export type {
   BuildExportHtmlDocumentOptions,
   BuildFileViewerRenderedHtmlDocumentOptions,
-} from './export';
+} from './output/export';
 export type {
   CreateFileViewerWorkerControllerOptions,
   FileViewerWorkerContext,
@@ -800,7 +805,7 @@ export type {
   FileViewerWorkerMessageHook,
   WorkerProvider,
   WorkerRef,
-} from './worker';
+} from './platform/worker';
 export type {
   FileViewerAiOptions,
   FileViewerArchiveOptions,
@@ -868,4 +873,4 @@ export type {
   ViewerCapabilityState,
   ViewerLifecycleContext,
   ViewerOperationContext,
-} from './types';
+} from './contracts/types';

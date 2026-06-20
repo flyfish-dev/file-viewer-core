@@ -1,10 +1,16 @@
+// Imperative viewer composition root.
+//
+// `createViewer` wires source normalization, lifecycle hooks, renderer
+// sessions, document features, watermarking, and public operations into a
+// framework-neutral controller. Framework packages should wrap this API instead
+// of reimplementing the orchestration.
 import {
   createEmptyFileViewerSearchState,
-} from './document';
+} from '../features/document/model';
 import {
   createFileViewerDocumentFeatureControllerActionHandlers,
-} from './documentEvents';
-import { createFileViewerZoomController } from './documentZoom';
+} from '../features/document/events';
+import { createFileViewerZoomController } from '../features/document/zoom';
 import {
   DEFAULT_FILE_VIEWER_DOWNLOAD_FILENAME,
   DEFAULT_FILE_VIEWER_EXPORT_FILENAME,
@@ -15,22 +21,22 @@ import {
   executeFileViewerPrintOperation,
   resolveFileViewerDisplayFilename,
   resolveFileViewerOperationFilename,
-} from './viewerOperations';
-import { getRendererAvailability, createUnsupportedAvailability } from './capabilities';
+} from './operations';
+import { getRendererAvailability, createUnsupportedAvailability } from '../registry/capabilities';
 import {
   buildFileViewerLifecycleContextFromNormalizedSource,
   buildFileViewerOperationContext,
   runFileViewerBeforeOperation,
   runFileViewerLifecycleHook,
-} from './operations';
-import { createRendererRegistry } from './registry';
+} from '../lifecycle/operations';
+import { createRendererRegistry } from '../registry/registry';
 import {
   applyFileViewerRenderSurfaceState,
   createFileViewerRenderSurfaceState,
-} from './rendererHandler';
-import { createFileViewerRequestScope } from './sourceLoading';
-import { normalizeSource } from './source';
-import { buildFileViewerWatermarkInlineStyle } from './watermark';
+} from '../rendering/handler';
+import { createFileViewerRequestScope } from '../source/loading';
+import { normalizeSource } from '../source';
+import { buildFileViewerWatermarkInlineStyle } from '../features/watermark';
 import type {
   FileRenderExportAdapter,
   FileViewerAiOptions,
@@ -47,7 +53,7 @@ import type {
   NormalizedFileViewerSource,
   RendererRegistry,
   RendererSession,
-} from './types';
+} from '../contracts/types';
 
 export interface CreateViewerOptions {
   registry?: RendererRegistry;

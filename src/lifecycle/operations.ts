@@ -1,11 +1,16 @@
-import { resolvePrintAvailability } from './capabilities';
-import { getExtension, normalizeFilename } from './source';
-import type { FileViewerErrorMessageFormatter } from './state';
+// Lifecycle and toolbar operation policy.
+//
+// This layer builds normalized contexts, runs user hooks, and resolves whether
+// actions such as print/download/export/zoom should be available. Concrete file
+// operation execution remains in `viewer/operations`.
+import { resolvePrintAvailability } from '../registry/capabilities';
+import { getExtension, normalizeFilename } from '../source';
+import type { FileViewerErrorMessageFormatter } from '../viewer/state';
 import {
   createFileViewerOriginalSourceState,
   hasFileViewerOriginalSource,
   type FileViewerOriginalSourceState,
-} from './viewerOperations';
+} from '../viewer/operations';
 import type {
   FileRenderExportAdapter,
   FileViewerDocumentAnchor,
@@ -25,7 +30,7 @@ import type {
   FileViewerPublicApi,
   FileViewerZoomState,
   NormalizedFileViewerSource,
-} from './types';
+} from '../contracts/types';
 
 export const FILE_VIEWER_LIFECYCLE_HOOKS = {
   'load-start': 'onLoadStart',

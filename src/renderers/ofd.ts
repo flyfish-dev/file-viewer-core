@@ -1,13 +1,13 @@
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider,
-} from '../documentDom';
-import { createFileViewerZoomChangeEmitter } from '../documentZoom';
+} from '../features/document/dom';
+import { createFileViewerZoomChangeEmitter } from '../features/document/zoom';
 import type {
   FileRenderContext,
   FileViewerRenderedInstance,
   FileViewerZoomState,
-} from '../types';
+} from '../contracts/types';
 
 type OfdModule = typeof import('../../vendor/ofd/dltech/ofd/ofd.js');
 type OfdRenderState = 'loading' | 'ready' | 'error';

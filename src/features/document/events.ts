@@ -1,22 +1,22 @@
-import { buildFileViewerDocumentTextChunks } from './document';
+import { buildFileViewerDocumentTextChunks } from './model';
 import {
   getCurrentFileViewerDocumentAnchor,
   resolveFileViewerScrollContainer,
   scrollToFileViewerDocumentAnchor,
-} from './documentDom';
+} from './dom';
 import {
   cloneFileViewerSearchState,
   createFileViewerDomSearchController,
   createFileViewerDomSearchControllerActionHandlers,
   type FileViewerDomSearchControllerStateTarget,
-} from './documentSearch';
+} from './search';
 import type {
   FileViewerAiOptions,
   FileViewerDocumentAnchor,
   FileViewerDocumentChunk,
   FileViewerSearchOptions,
   FileViewerSearchState,
-} from './types';
+} from '../../contracts/types';
 
 export interface ResolveFileViewerLocationChangeAnchorInput {
   root: HTMLElement | null | undefined;

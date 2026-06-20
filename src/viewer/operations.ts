@@ -3,8 +3,8 @@ import {
   triggerFileViewerBlobDownload,
   triggerFileViewerUrlDownload,
   waitForFileViewerPrintWindowReady,
-} from './export';
-import { DEFAULT_FILE_VIEWER_SOURCE_FILENAME } from './source';
+} from '../output/export';
+import { DEFAULT_FILE_VIEWER_SOURCE_FILENAME } from '../source';
 import type { FileViewerErrorMessageFormatter } from './state';
 import type {
   FileRenderExportAdapter,
@@ -13,7 +13,7 @@ import type {
   FileViewerOperationType,
   FileViewerPrintOptions,
   NormalizedFileViewerSource,
-} from './types';
+} from '../contracts/types';
 
 export interface FileViewerOriginalSourceState {
   buffer?: ArrayBuffer | null;

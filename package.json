@@ -1,6 +1,6 @@
 {
   "name": "@file-viewer/core",
-  "version": "2.0.0",
+  "version": "2.0.6",
   "private": false,
   "type": "module",
   "description": "Framework-neutral TypeScript core for Flyfish File Viewer",
@@ -61,7 +61,7 @@
     "type-check": "tsc -b tsconfig.json"
   },
   "dependencies": {
-    "@aiden0z/pptx-renderer": "^1.2.0",
+    "@file-viewer/pptx": "^2.0.6",
     "@flyfish-dev/cad-viewer": "^0.6.4",
     "@excalidraw/excalidraw": "^0.18.1",
     "@kenjiuno/msgreader": "^1.28.0",
@@ -90,6 +90,8 @@
     "pako": "^2.1.0",
     "pdfjs-dist": "^6.0.227",
     "postal-mime": "^2.7.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "roughjs": "^4.6.6",
     "rtf.js": "^3.0.9",
     "shpjs": "^6.2.0",

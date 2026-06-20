@@ -1,4 +1,4 @@
-import type { FileViewerDocumentAnchor } from '../types';
+import type { FileViewerDocumentAnchor } from '../../../contracts/types';
 
 export const DEFAULT_FILE_VIEWER_ANCHOR_SELECTOR = [
   '[data-viewer-anchor-id]',

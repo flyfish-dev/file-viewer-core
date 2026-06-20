@@ -13,15 +13,15 @@ import {
   createFileViewerRenderCompleteState,
   type FileViewerLoadStartState,
   type FileViewerRenderCompleteState,
-} from './sourceLoading';
-import type { FileViewerErrorMessageFormatter } from './state';
+} from '../source/loading';
+import type { FileViewerErrorMessageFormatter } from '../viewer/state';
 import type {
   FileViewerFileRef,
   FileViewerLifecycleContext,
   FileViewerOperationContext,
   FileViewerOperationType,
   FileViewerOptions,
-} from './types';
+} from '../contracts/types';
 
 export interface BuildFileViewerLifecycleFacadeLoadStartStateInput {
   version: number;

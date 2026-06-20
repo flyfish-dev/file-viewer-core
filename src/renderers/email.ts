@@ -1,8 +1,8 @@
-import { disposeFileViewerRendered } from '../rendererHandler';
+import { disposeFileViewerRendered } from '../rendering/handler';
 import type {
   FileRenderContext,
   FileViewerRenderedInstance,
-} from '../types';
+} from '../contracts/types';
 
 type EmailKind = 'eml' | 'msg' | 'mbox';
 type EmailBodyMode = 'html' | 'text' | 'headers';

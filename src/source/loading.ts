@@ -1,16 +1,21 @@
+// Source loading orchestrates file/url/buffer acquisition before rendering.
+//
+// It may coordinate lifecycle state and request cancellation, but it must not
+// know which renderer will consume the buffer. That boundary keeps streaming,
+// retry, abort, and remote-download behavior reusable across every framework.
 import type {
   FileViewerFileRef,
   FileViewerLifecycleContext,
   FileViewerPdfOptions,
-} from './types';
+} from '../contracts/types';
 import {
   buildFileViewerLifecycleContext,
   type FileViewerLifecycleStateController,
-} from './operations';
+} from '../lifecycle/operations';
 import {
   FILE_VIEWER_PREVIEW_MESSAGES,
   type FileViewerErrorMessageFormatter,
-} from './state';
+} from '../viewer/state';
 import {
   DEFAULT_FILE_VIEWER_SOURCE_FILENAME,
   getExtension,
@@ -18,7 +23,7 @@ import {
   readFileViewerBuffer,
   resolveFileViewerSourceFilename,
   wrapFileViewerFileRef,
-} from './source';
+} from './index';
 
 export const DEFAULT_PDF_RANGE_CHUNK_SIZE = 64 * 1024;
 export const DEFAULT_FILE_VIEWER_STREAMING_PDF_FILENAME = 'preview.pdf';

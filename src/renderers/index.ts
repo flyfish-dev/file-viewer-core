@@ -1,12 +1,17 @@
-import { DEFAULT_RENDERER_DEFINITIONS } from '../formats';
-import { createFileRenderHandlerRegistry } from '../rendererHandler';
-import { createFileViewerRendererDispatcher } from '../rendererDispatcher';
-import { createFileViewerUnsupportedState } from '../state';
+// Browser renderer strategy registry.
+//
+// Each entry lazy-loads a concrete renderer only after its format is selected.
+// Keep renderer-specific dependencies inside the leaf renderer files so the
+// core shell and framework wrappers stay fast on first load.
+import { DEFAULT_RENDERER_DEFINITIONS } from '../registry/formats';
+import { createFileRenderHandlerRegistry } from '../rendering/handler';
+import { createFileViewerRendererDispatcher } from '../rendering/dispatcher';
+import { createFileViewerUnsupportedState } from '../viewer/state';
 import type {
   FileRenderContext,
   FileRenderHandler,
   FileViewerRenderedInstance,
-} from '../types';
+} from '../contracts/types';
 
 type CoreBrowserRendererHandler = FileRenderHandler<FileViewerRenderedInstance, HTMLDivElement>;
 

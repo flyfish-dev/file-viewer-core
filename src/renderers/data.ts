@@ -1,8 +1,8 @@
-import { resolveFileViewerDataSqlWasmUrl } from '../assets';
+import { resolveFileViewerDataSqlWasmUrl } from '../platform/assets';
 import type {
   FileRenderContext,
   FileViewerRenderedInstance,
-} from '../types';
+} from '../contracts/types';
 
 declare global {
   interface Window {

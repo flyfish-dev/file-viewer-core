@@ -1,13 +1,13 @@
-import { createFileViewerZoomChangeEmitter as createZoomChangeEmitter } from '../documentZoom'
+import { createFileViewerZoomChangeEmitter as createZoomChangeEmitter } from '../features/document/zoom'
 import { readFileViewerText as readText } from '../source'
 import type {
   FileViewerRenderedInstance,
   FileViewerZoomState
-} from '../types'
+} from '../contracts/types'
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider
-} from '../documentDom'
+} from '../features/document/dom'
 import type { HLJSApi, LanguageFn } from 'highlight.js'
 
 const languageMap: Record<string, string> = {

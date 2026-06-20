@@ -1,14 +1,14 @@
 import {
   resolveFileViewerArchiveWasmUrl,
   resolveFileViewerArchiveWorkerUrl,
-} from '../assets';
-import { disposeFileViewerRendered } from '../rendererHandler';
+} from '../platform/assets';
+import { disposeFileViewerRendered } from '../rendering/handler';
 import type {
   FileRenderContext,
   FileViewerArchiveOptions,
   FileViewerOptions,
   FileViewerRenderedInstance,
-} from '../types';
+} from '../contracts/types';
 import {
   createArchiveCacheKey,
   flattenArchiveObject,

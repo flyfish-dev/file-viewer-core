@@ -1,3 +1,8 @@
+// Shared contracts for the whole core package.
+//
+// Keep this layer declarative: no DOM reads, renderer imports, or async loading
+// should be introduced here. Higher layers depend on these contracts, never the
+// other way around.
 export type FileViewerSourceKind = 'file' | 'url' | 'buffer' | 'empty';
 
 export type FileViewerThemeMode = 'light' | 'dark' | 'system';

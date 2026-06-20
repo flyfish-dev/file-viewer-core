@@ -1,16 +1,16 @@
-import { PptxViewer, RECOMMENDED_ZIP_LIMITS } from '@aiden0z/pptx-renderer';
+import { PptxViewer, RECOMMENDED_ZIP_LIMITS } from '@file-viewer/pptx';
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider,
-} from '../documentDom';
-import { createFileViewerZoomChangeEmitter } from '../documentZoom';
-import { waitForFileViewerNextPaint } from '../export';
+} from '../features/document/dom';
+import { createFileViewerZoomChangeEmitter } from '../features/document/zoom';
+import { waitForFileViewerNextPaint } from '../output/export';
 import type {
   FileRenderContext,
   FileRenderExportAdapter,
   FileViewerRenderedInstance,
   FileViewerZoomState,
-} from '../types';
+} from '../contracts/types';
 
 type PptxRenderState = 'loading' | 'ready' | 'error';
 
@@ -19,6 +19,7 @@ const pptxStyle = `
 .pptx-render-surface{min-height:240px}
 .pptx-render-surface.is-loading{opacity:.72}
 .pptx-loading{position:sticky;top:12px;z-index:3;box-sizing:border-box;display:inline-flex;align-items:center;gap:10px;margin:0 0 16px 50%;padding:10px 14px;border:1px solid rgba(42,94,144,.14);border-radius:999px;background:rgba(255,255,255,.92);color:#41556b;box-shadow:0 12px 32px rgba(24,44,64,.12);transform:translateX(-50%)}
+.pptx-loading[hidden],.pptx-error[hidden]{display:none!important}
 .pptx-loading-dot{width:9px;height:9px;border-radius:999px;background:#1f9d67;box-shadow:0 0 0 6px rgba(31,157,103,.13)}
 .pptx-error{box-sizing:border-box;width:min(680px,calc(100% - 32px));margin:48px auto;padding:24px;border:1px solid rgba(28,43,58,.12);border-radius:14px;background:#fff;color:#1f2d3b;box-shadow:0 16px 42px rgba(25,42,54,.08)}
 .pptx-error strong{display:block;margin-bottom:10px;font-size:18px}
@@ -209,6 +210,15 @@ export default async function renderPptx(
         onSlideError: (_index, error) => {
           console.warn('PPTX slide render warning:', error);
         },
+        onError: error => {
+          if (disposed) {
+            return;
+          }
+          state = 'error';
+          errorMessage = formatErrorMessage(error);
+          context?.registerExportAdapter?.(null);
+          syncUi();
+        },
       });
 
       if (disposed) {
@@ -217,7 +227,11 @@ export default async function renderPptx(
       }
 
       viewer = nextViewer;
+      state = 'ready';
+      notifyProgressiveReady();
+      zoomPercent = getCurrentZoomPercent();
       registerExportAdapter();
+      syncUi();
       zoomEmitter.emit();
     } catch (error) {
       if (disposed) {

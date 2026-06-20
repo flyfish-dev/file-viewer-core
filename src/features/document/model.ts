@@ -5,7 +5,7 @@ import type {
   FileViewerSearchOptions,
   FileViewerSearchState,
   FileViewerZoomState,
-} from './types';
+} from '../../contracts/types';
 
 export const DEFAULT_FILE_VIEWER_ZOOM_SCALE = 1;
 export const DEFAULT_FILE_VIEWER_TEXT_CHUNK_SIZE = 1200;

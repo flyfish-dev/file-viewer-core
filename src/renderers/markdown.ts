@@ -1,14 +1,14 @@
 import { marked } from 'marked';
-import { createFileViewerZoomChangeEmitter as createZoomChangeEmitter } from '../documentZoom';
+import { createFileViewerZoomChangeEmitter as createZoomChangeEmitter } from '../features/document/zoom';
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider,
-} from '../documentDom';
+} from '../features/document/dom';
 import { readFileViewerText as readText } from '../source';
 import type {
   FileViewerRenderedInstance,
   FileViewerZoomState,
-} from '../types';
+} from '../contracts/types';
 
 const markdownStyle = `
 .markdown-viewer{min-height:100%;padding:28px 16px 48px;background:#eef1f4;overflow:auto;box-sizing:border-box}

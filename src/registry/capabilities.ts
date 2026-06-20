@@ -1,6 +1,6 @@
 import { ARCHIVE_EXTENSIONS, IMAGE_EXTENSIONS, MODEL_EXTENSIONS, TEXT_EXTENSIONS } from './formats';
-import { normalizeFileExtension } from './source';
-import type { FileRenderExportAdapter, FileViewerOperationAvailability, RendererDefinition, RendererSession } from './types';
+import { normalizeFileExtension } from '../source';
+import type { FileRenderExportAdapter, FileViewerOperationAvailability, RendererDefinition, RendererSession } from '../contracts/types';
 
 export const DEFAULT_OPERATION_AVAILABILITY: FileViewerOperationAvailability = Object.freeze({
   download: false,

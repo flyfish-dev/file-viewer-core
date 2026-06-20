@@ -1,10 +1,10 @@
-import { createFileViewerZoomState } from './document';
-import { findFileViewerZoomProvider } from './documentDom';
+import { createFileViewerZoomState } from './model';
+import { findFileViewerZoomProvider } from './dom';
 import type {
   FileViewerOperationType,
   FileViewerZoomProvider,
   FileViewerZoomState,
-} from './types';
+} from '../../contracts/types';
 
 export type FileViewerZoomOperation = Extract<
   FileViewerOperationType,

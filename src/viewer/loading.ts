@@ -1,4 +1,4 @@
-import type { FileViewerStateTheme } from './types';
+import type { FileViewerStateTheme } from '../contracts/types';
 
 export type FileViewerLoadingTheme = FileViewerStateTheme;
 

@@ -1,5 +1,5 @@
 import { readFileViewerText } from '../source';
-import type { FileViewerRenderedInstance } from '../types';
+import type { FileViewerRenderedInstance } from '../contracts/types';
 
 type Position = [number, number, ...number[]];
 type Geometry =

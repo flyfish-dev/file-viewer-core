@@ -1,6 +1,6 @@
 import { DEFAULT_RENDERER_DEFINITIONS } from './formats';
-import { normalizeFileExtension } from './source';
-import type { RendererDefinition, RendererRegistry } from './types';
+import { normalizeFileExtension } from '../source';
+import type { RendererDefinition, RendererRegistry } from '../contracts/types';
 
 const normalizeDefinition = (definition: RendererDefinition): RendererDefinition => ({
   ...definition,

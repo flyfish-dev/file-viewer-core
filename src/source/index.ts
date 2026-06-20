@@ -3,7 +3,7 @@ import type {
   FileViewerSource,
   FileViewerSourceKind,
   NormalizedFileViewerSource,
-} from './types';
+} from '../contracts/types';
 
 export type FileViewerReadResult = string | ArrayBuffer | undefined | null;
 

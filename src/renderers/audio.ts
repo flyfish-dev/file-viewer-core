@@ -1,4 +1,4 @@
-import type { FileViewerRenderedInstance } from '../types'
+import type { FileViewerRenderedInstance } from '../contracts/types'
 
 const AUDIO_MIME_MAP: Record<string, string> = {
   aac: 'audio/aac',

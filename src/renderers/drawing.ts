@@ -1,15 +1,15 @@
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider,
-} from '../documentDom';
-import { createFileViewerZoomChangeEmitter } from '../documentZoom';
-import { waitForFileViewerNextPaint } from '../export';
+} from '../features/document/dom';
+import { createFileViewerZoomChangeEmitter } from '../features/document/zoom';
+import { waitForFileViewerNextPaint } from '../output/export';
 import { readFileViewerText } from '../source';
 import type {
   FileRenderContext,
   FileViewerRenderedInstance,
   FileViewerZoomState,
-} from '../types';
+} from '../contracts/types';
 
 declare global {
   interface Window {

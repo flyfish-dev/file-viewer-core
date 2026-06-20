@@ -1,5 +1,5 @@
-import { normalizeFileExtension } from './source';
-import type { FileViewerRenderStateKind, FileViewerStateDescriptor, FileViewerStateTheme } from './types';
+import { normalizeFileExtension } from '../source';
+import type { FileViewerRenderStateKind, FileViewerStateDescriptor, FileViewerStateTheme } from '../contracts/types';
 
 export type FileViewerErrorMessageFormatter = (prefix: string, error: unknown) => string;
 

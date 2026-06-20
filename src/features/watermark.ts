@@ -1,4 +1,4 @@
-import type { FileViewerWatermarkOptions } from './types';
+import type { FileViewerWatermarkOptions } from '../contracts/types';
 
 export type FileViewerWatermarkStyle = Record<string, string> & {
   backgroundImage: string;

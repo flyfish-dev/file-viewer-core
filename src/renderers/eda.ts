@@ -1,4 +1,4 @@
-import type { FileRenderContext, FileViewerRenderedInstance } from '../types';
+import type { FileRenderContext, FileViewerRenderedInstance } from '../contracts/types';
 import {
   parseEdaFile,
   type EdaDomainRole,

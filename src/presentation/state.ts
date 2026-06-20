@@ -1,12 +1,12 @@
-import { normalizeFileViewerToolbar } from './operations';
-import { normalizeFileViewerTheme } from './options';
-import { getExtension, resolveFileViewerSourceFilename } from './source';
+import { normalizeFileViewerToolbar } from '../lifecycle/operations';
+import { normalizeFileViewerTheme } from '../config/options';
+import { getExtension, resolveFileViewerSourceFilename } from '../source';
 import type {
   FileViewerFileRef,
   FileViewerOptions,
   FileViewerThemeMode,
   FileViewerToolbarOptions,
-} from './types';
+} from '../contracts/types';
 
 export interface ResolveFileViewerPresentationStateInput {
   filename?: string;

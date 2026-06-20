@@ -8,18 +8,18 @@ import {
   type RenderStats,
   type ViewChangeEvent,
 } from '@flyfish-dev/cad-viewer';
-import { resolveFileViewerCadAssetUrls } from '../assets';
+import { resolveFileViewerCadAssetUrls } from '../platform/assets';
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider,
-} from '../documentDom';
-import { createFileViewerZoomChangeEmitter } from '../documentZoom';
+} from '../features/document/dom';
+import { createFileViewerZoomChangeEmitter } from '../features/document/zoom';
 import type {
   FileRenderContext,
   FileViewerCadOptions,
   FileViewerRenderedInstance,
   FileViewerZoomState,
-} from '../types';
+} from '../contracts/types';
 
 type CadStatus = 'loading' | 'ready' | 'error';
 

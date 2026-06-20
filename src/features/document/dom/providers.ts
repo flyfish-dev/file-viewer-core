@@ -1,7 +1,7 @@
 import type {
   FileViewerSearchProvider,
   FileViewerZoomProvider,
-} from '../types';
+} from '../../../contracts/types';
 
 export interface FileViewerSearchProviderHost extends HTMLElement {
   __flyfishViewerSearchProvider?: FileViewerSearchProvider;

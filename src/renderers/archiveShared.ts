@@ -1,7 +1,7 @@
 import {
   ARCHIVE_EXTENSIONS,
   DEFAULT_SUPPORTED_EXTENSIONS,
-} from '../formats';
+} from '../registry/formats';
 
 export const ARCHIVE_PREVIEWABLE_EXTENSIONS = DEFAULT_SUPPORTED_EXTENSIONS as readonly string[];
 

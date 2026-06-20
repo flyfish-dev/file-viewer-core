@@ -1,12 +1,12 @@
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider,
-} from '../documentDom';
-import { createFileViewerZoomChangeEmitter as createZoomChangeEmitter } from '../documentZoom';
+} from '../features/document/dom';
+import { createFileViewerZoomChangeEmitter as createZoomChangeEmitter } from '../features/document/zoom';
 import type {
   FileViewerRenderedInstance,
   FileViewerZoomState,
-} from '../types';
+} from '../contracts/types';
 
 const imageMimeMap: Record<string, string> = {
   avif: 'image/avif',

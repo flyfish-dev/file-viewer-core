@@ -1,6 +1,6 @@
 import type {
   FileViewerRenderedInstance,
-} from '../types';
+} from '../contracts/types';
 import {
   parseUmdBook,
   type UmdBook,

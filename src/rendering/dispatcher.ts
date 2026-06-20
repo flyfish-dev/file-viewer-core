@@ -1,7 +1,7 @@
-import { DEFAULT_RENDERER_DEFINITIONS } from './formats';
-import { createRendererRegistry } from './registry';
-import { normalizeFileExtension } from './source';
-import type { RendererRegistry } from './types';
+import { DEFAULT_RENDERER_DEFINITIONS } from '../registry/formats';
+import { createRendererRegistry } from '../registry/registry';
+import { normalizeFileExtension } from '../source';
+import type { RendererRegistry } from '../contracts/types';
 
 export interface FileViewerRendererHandlerEntry<Handler> {
   rendererId: string;

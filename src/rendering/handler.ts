@@ -1,14 +1,19 @@
-import { DEFAULT_RENDERER_DEFINITIONS } from './formats';
-import { waitForFileViewerNextPaint } from './export';
-import { createFileViewerRendererDispatcher } from './rendererDispatcher';
-import type { FileViewerRendererDispatcher } from './rendererDispatcher';
-import { createRendererRegistry } from './registry';
-import { getExtension, normalizeFileExtension } from './source';
+// Rendering orchestration layer.
+//
+// This module adapts registry entries into disposable renderer sessions. It is
+// the only place that should bridge raw buffers, DOM targets, render contexts,
+// export adapters, and readiness state.
+import { DEFAULT_RENDERER_DEFINITIONS } from '../registry/formats';
+import { waitForFileViewerNextPaint } from '../output/export';
+import { createFileViewerRendererDispatcher } from './dispatcher';
+import type { FileViewerRendererDispatcher } from './dispatcher';
+import { createRendererRegistry } from '../registry/registry';
+import { getExtension, normalizeFileExtension } from '../source';
 import {
   applyFileViewerRenderReadinessState,
   type FileViewerMutableAccessor,
   type MutableFileViewerRenderReadinessState,
-} from './sourceLoading';
+} from '../source/loading';
 import type {
   FileRenderExportAdapter,
   FileRenderContext,
@@ -19,7 +24,7 @@ import type {
   RendererLoader,
   RendererRegistry,
   RendererSession,
-} from './types';
+} from '../contracts/types';
 
 export const FILE_VIEWER_RENDER_SESSION_DISPOSE_ERROR_MESSAGE = '预览内容卸载失败';
 

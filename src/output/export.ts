@@ -2,7 +2,7 @@ import type {
   FileRenderExportAdapter,
   FileRenderExportMode,
   FileRenderExportOptions,
-} from './types'
+} from '../contracts/types'
 
 const escapeHtmlAttribute = (value: string) => value
   .replace(/&/g, '&amp;')

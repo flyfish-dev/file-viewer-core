@@ -1,3 +1,8 @@
+// Headless API surface for adapters and non-DOM orchestration.
+//
+// This barrel intentionally re-exports pure helpers, contracts, loading state,
+// lifecycle operations, and renderer registry utilities without importing any
+// framework wrapper. It is the safest entrypoint for React/Vue/Web packages.
 export {
   DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH,
   DEFAULT_FILE_VIEWER_ARCHIVE_WASM_PATH,
@@ -47,7 +52,7 @@ export {
   needsDedicatedPrintAdapter,
   NON_PRINTABLE_EXTENSIONS,
   resolvePrintAvailability,
-} from './capabilities';
+} from './registry/capabilities';
 
 export {
   DEFAULT_FILE_VIEWER_TEXT_CHUNK_OVERLAP,
@@ -58,7 +63,7 @@ export {
   createFileViewerZoomState,
   normalizeFileViewerAiOptions,
   normalizeFileViewerSearchOptions,
-} from './document';
+} from './features/document/model';
 
 export {
   ARCHIVE_EXTENSIONS,
@@ -67,7 +72,7 @@ export {
   IMAGE_EXTENSIONS,
   MODEL_EXTENSIONS,
   TEXT_EXTENSIONS,
-} from './formats';
+} from './registry/formats';
 
 export {
   FILE_VIEWER_BEFORE_OPERATION_ERROR_PREFIX,
@@ -113,7 +118,7 @@ export {
   runFileViewerToolbarAvailabilitySync,
   runFileViewerToolbarZoomSync,
   serializeFileViewerContext,
-} from './operations';
+} from './lifecycle/operations';
 export type {
   BuildFileViewerLifecycleContextFromNormalizedSourceInput,
   BuildFileViewerOperationContextFromLifecycleStateInput,
@@ -151,7 +156,7 @@ export type {
   RunFileViewerToolbarAvailabilitySyncInput,
   RunFileViewerToolbarZoomSyncInput,
   SerializedFileViewerContext,
-} from './operations';
+} from './lifecycle/operations';
 
 export {
   getFileViewerOptionsSearchParam,
@@ -160,44 +165,44 @@ export {
   sanitizeFileViewerOptions,
   serializeFileViewerOptions,
   setFileViewerOptionsSearchParam,
-} from './options';
+} from './config/options';
 export type {
   FileViewerSerializableCadOptions,
   FileViewerSerializableOptions,
   FileViewerSerializableToolbarOptions,
-} from './options';
+} from './config/options';
 
 export {
   resolveFileViewerPresentationState,
-} from './presentation';
+} from './presentation/state';
 export type {
   FileViewerPresentationState,
   ResolveFileViewerPresentationStateInput,
-} from './presentation';
+} from './presentation/state';
 
 export {
   createRendererRegistry,
-} from './registry';
+} from './registry/registry';
 
 export {
   createFileViewerRendererDispatcher,
-} from './rendererDispatcher';
+} from './rendering/dispatcher';
 export type {
   CreateFileViewerRendererDispatcherOptions,
   FileViewerRendererDispatcher,
   FileViewerRendererHandlerEntry,
-} from './rendererDispatcher';
+} from './rendering/dispatcher';
 
 export {
   buildFileRenderContextFromLoadContext,
   createFileRenderHandlerRegistry,
   createFileRenderHandlerLoader,
-} from './rendererHandler';
+} from './rendering/handler';
 export type {
   CreateFileRenderHandlerLoaderOptions,
   CreateFileRenderHandlerRegistryOptions,
   FileRenderHandlerRegistryResult,
-} from './rendererHandler';
+} from './rendering/handler';
 
 export {
   DEFAULT_FILE_VIEWER_SOURCE_FILENAME,
@@ -266,7 +271,7 @@ export {
   runFileViewerReadAndRenderFile,
   runFileViewerStreamingPdfPreview,
   shouldStreamPdfUrl,
-} from './sourceLoading';
+} from './source/loading';
 export type {
   CancelFileViewerPreviewRequestInput,
   CommitFileViewerEmptyPreviewResetStateInput,
@@ -324,7 +329,7 @@ export type {
   RunFileViewerReadAndRenderFileInput,
   RunFileViewerRemoteFilePreviewInput,
   RunFileViewerStreamingPdfPreviewInput,
-} from './sourceLoading';
+} from './source/loading';
 
 export {
   DEFAULT_FILE_VIEWER_STATE_THEME,
@@ -337,10 +342,10 @@ export {
   createFileViewerUnsupportedState,
   formatFileViewerErrorMessage,
   normalizeFileViewerErrorMessage,
-} from './state';
+} from './viewer/state';
 export type {
   FileViewerErrorMessageFormatter,
-} from './state';
+} from './viewer/state';
 
 export {
   buildFileViewerWatermarkBackgroundImage,
@@ -349,11 +354,11 @@ export {
   buildFileViewerWatermarkSvg,
   normalizeFileViewerWatermark,
   resolveFileViewerWatermarkPresentationState,
-} from './watermark';
+} from './features/watermark';
 export type {
   FileViewerWatermarkPresentationState,
   FileViewerWatermarkStyle,
-} from './watermark';
+} from './features/watermark';
 
 export type {
   FileRenderContext,
@@ -422,4 +427,4 @@ export type {
   ViewerCapabilityState,
   ViewerLifecycleContext,
   ViewerOperationContext,
-} from './types';
+} from './contracts/types';

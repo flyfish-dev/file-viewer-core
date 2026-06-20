@@ -1,4 +1,4 @@
-import type { RendererDefinition } from './types';
+import type { RendererDefinition } from '../contracts/types';
 
 export const ARCHIVE_EXTENSIONS = [
   'zip', 'zipx', '7z', 'rar', 'tar', 'gz', 'gzip', 'tgz', 'bz2', 'bzip2', 'tbz', 'tbz2',

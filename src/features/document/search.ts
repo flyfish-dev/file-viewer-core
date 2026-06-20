@@ -2,18 +2,18 @@ import {
   collectFileViewerDocumentAnchors,
   findFileViewerAnchorForElement,
   findFileViewerSearchProvider,
-} from './documentDom';
+} from './dom';
 import {
   createEmptyFileViewerSearchState,
   normalizeFileViewerSearchOptions,
-} from './document';
+} from './model';
 import type {
   FileViewerDocumentAnchor,
   FileViewerSearchMatch,
   FileViewerSearchOptions,
   FileViewerSearchProvider,
   FileViewerSearchState,
-} from './types';
+} from '../../contracts/types';
 
 export interface CreateFileViewerDomSearchControllerOptions {
   root: () => HTMLElement | null | undefined;

@@ -17,13 +17,13 @@ import {
   registerFileViewerZoomProvider,
   unregisterFileViewerSearchProvider,
   unregisterFileViewerZoomProvider,
-} from '../documentDom';
-import { createFileViewerZoomChangeEmitter } from '../documentZoom';
+} from '../features/document/dom';
+import { createFileViewerZoomChangeEmitter } from '../features/document/zoom';
 import {
   buildPrintPageStyle,
   formatCssPixels,
-} from '../printLayout';
-import { DEFAULT_PDF_RANGE_CHUNK_SIZE } from '../sourceLoading';
+} from '../output/printLayout';
+import { DEFAULT_PDF_RANGE_CHUNK_SIZE } from '../source/loading';
 import type {
   FileRenderContext,
   FileRenderExportOptions,
@@ -32,7 +32,7 @@ import type {
   FileViewerSearchOptions,
   FileViewerSearchState,
   FileViewerZoomState,
-} from '../types';
+} from '../contracts/types';
 import { pdfViewerStyle } from './pdfStyles';
 
 export const DEFAULT_FILE_VIEWER_PDF_WORKER_URL =
@@ -74,7 +74,9 @@ interface PdfFlattenedOutlineItem {
 
 const createStyle = (documentRef: Document) => {
   const style = documentRef.createElement('style');
-  style.textContent = pdfViewerStyle;
+  style.textContent = `${pdfViewerStyle}
+.pdf-state[hidden],.pdf-nav-pane[hidden]{display:none!important}
+`;
   return style;
 };
 

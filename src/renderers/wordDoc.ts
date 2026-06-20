@@ -3,19 +3,19 @@ import {
   applyPrintPageSize,
   buildPrintPageStyle,
   formatCssPixels
-} from '../printLayout'
+} from '../output/printLayout'
 import {
   createFileViewerZoomChangeEmitter as createZoomChangeEmitter,
-} from '../documentZoom'
+} from '../features/document/zoom'
 import type {
   FileRenderContext,
   FileViewerRenderedInstance as AppWrapper,
   FileViewerZoomState
-} from '../types'
+} from '../contracts/types'
 import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider
-} from '../documentDom'
+} from '../features/document/dom'
 
 const PAGE_BREAK_MARKER = '<span class="msdoc-page-break"></span>'
 const EMPTY_PAGE_HTML = '<p class="msdoc-paragraph"><br></p>'

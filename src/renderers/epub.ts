@@ -1,5 +1,5 @@
 import type { Book, Rendition } from 'epubjs';
-import type { FileViewerRenderedInstance } from '../types';
+import type { FileViewerRenderedInstance } from '../contracts/types';
 
 type EpubLocation = {
   atEnd?: boolean;

@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import type {
   FileRenderContext,
   FileViewerRenderedInstance,
-} from '../types';
+} from '../contracts/types';
 
 type ModelStatus = 'loading' | 'ready' | 'error';
 
