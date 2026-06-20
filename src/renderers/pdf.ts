@@ -45,6 +45,12 @@ const FIT_HORIZONTAL_PADDING = 28;
 const PAGE_BORDER_WIDTH = 18;
 const PDF_EXPORT_MAX_PAGE_PIXELS = 8_000_000;
 
+// PDF.js viewer CSS references image assets that are not shipped with the
+// on-demand renderer chunk, so keep the preview self-contained and 404-free.
+const normalizedPdfViewerStyle = pdfViewerStyle
+  .replace(/--page-border-image:\s*url\(images\/shadow\.png\)\s*9 9 repeat;/g, '--page-border-image:none;')
+  .replace(/background:\s*url\("\.\/images\/loading-icon\.gif"\)\s*center no-repeat;/g, 'background:none;');
+
 type PdfNavMode = 'pages' | 'outline';
 type PdfRotation = 0 | 90 | 180 | 270;
 type PdfLoadingTask = ReturnType<typeof getDocument>;
@@ -74,7 +80,7 @@ interface PdfFlattenedOutlineItem {
 
 const createStyle = (documentRef: Document) => {
   const style = documentRef.createElement('style');
-  style.textContent = `${pdfViewerStyle}
+  style.textContent = `${normalizedPdfViewerStyle}
 .pdf-state[hidden],.pdf-nav-pane[hidden]{display:none!important}
 `;
   return style;

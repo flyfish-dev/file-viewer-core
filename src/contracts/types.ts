@@ -168,6 +168,7 @@ export type FileViewerRenderedInstance =
 export interface FileViewerTypstOptions {
   compilerWasmUrl?: string;
   rendererWasmUrl?: string;
+  renderTimeoutMs?: number;
 }
 
 export interface FileViewerDataOptions {

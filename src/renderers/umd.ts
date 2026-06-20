@@ -37,7 +37,7 @@ const umdStyle = `
 .umd-text{color:#1f2937;font-family:Georgia,'Times New Roman','Songti SC',SimSun,serif;font-size:17px;line-height:1.86;white-space:pre-wrap;word-break:break-word}
 .umd-image-list{display:grid;gap:18px}.umd-image-list figure{margin:0;text-align:center}.umd-image-list img{max-width:100%;height:auto;border-radius:6px;box-shadow:0 10px 24px rgba(15,23,42,.12)}
 .umd-empty,.umd-warning{color:#64748b;font-size:14px;line-height:1.7}.umd-warning{max-width:820px;margin:-28px auto 36px;padding:0 34px;color:#b45309;box-sizing:border-box}
-.umd-state{position:absolute;inset:18px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,.92);color:#64748b;font-size:14px}.umd-state.error{color:#b42318}
+.umd-state{position:absolute;inset:18px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,.92);color:#64748b;font-size:14px}.umd-state[hidden]{display:none!important}.umd-state.error{color:#b42318}
 .file-viewer[data-viewer-theme='dark'] .umd-viewer{background:#101820;color:#e5edf6}.file-viewer[data-viewer-theme='dark'] .umd-toolbar,.file-viewer[data-viewer-theme='dark'] .umd-toc{background:rgba(15,23,42,.92);border-color:rgba(148,163,184,.18)}
 .file-viewer[data-viewer-theme='dark'] .umd-stage{background:#111827;box-shadow:0 18px 45px rgba(0,0,0,.35),inset 0 0 0 1px rgba(148,163,184,.16)}
 .file-viewer[data-viewer-theme='dark'] .umd-book-head h1,.file-viewer[data-viewer-theme='dark'] .umd-chapter h2,.file-viewer[data-viewer-theme='dark'] .umd-text,.file-viewer[data-viewer-theme='dark'] .umd-toc-head{color:#e5edf6}

@@ -20,6 +20,7 @@ const modelStyle = `
 .model-stage{position:relative;flex:1;min-height:0;overflow:hidden}
 .model-stage canvas{display:block;width:100%;height:100%;outline:none}
 .model-state{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;background:rgba(248,250,252,.88);color:#64748b;text-align:center;line-height:1.7}
+.model-state[hidden]{display:none!important}
 .model-state.error{color:#b42318}
 .model-state strong{color:#b42318;font-size:18px}
 @media (max-width:720px){.model-toolbar{min-height:64px;align-items:flex-start;flex-direction:column;gap:8px;padding:8px 10px}.model-meta{width:100%;justify-content:flex-start}}

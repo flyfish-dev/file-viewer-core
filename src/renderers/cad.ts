@@ -94,6 +94,7 @@ const cadStyle = `
 .cad-native-stage .dwfv-root,.cad-native-stage .dwfv-workspace,.cad-native-stage .dwfv-stage{width:100%;min-width:0;min-height:0}
 .cad-native-stage .dwfv-root{height:100%}
 .cad-state{position:absolute;inset:50% auto auto 50%;max-width:min(520px,calc(100% - 48px));transform:translate(-50%,-50%);border-radius:12px;padding:14px 18px;background:rgba(255,255,255,.92);box-shadow:0 14px 38px rgba(15,23,42,.12);color:#53637a;font-size:13px;font-weight:800;text-align:center}
+.cad-state[hidden]{display:none!important}
 .cad-state.error{color:#b42318}
 .cad-inspector strong{display:block;margin-bottom:12px;color:#1f2a3d;font-size:13px}
 .cad-inspector dl{display:grid;gap:8px;margin:0}

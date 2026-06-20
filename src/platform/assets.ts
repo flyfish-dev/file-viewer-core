@@ -16,13 +16,19 @@ export const DEFAULT_FILE_VIEWER_CAD_WASM_PATH = 'wasm/cad/';
 export const DEFAULT_FILE_VIEWER_CAD_WORKER_PATH = 'wasm/cad/dwg-worker.js';
 export const DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH = 'wasm/cad/dwfv-render.wasm';
 export const DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL =
-  'https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-web-compiler@0.7.0/pkg/typst_ts_web_compiler_bg.wasm';
+  'wasm/typst/typst_ts_web_compiler_bg.wasm';
 export const DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_URL =
+  'wasm/typst/typst_ts_renderer_bg.wasm';
+export const FALLBACK_FILE_VIEWER_TYPST_COMPILER_WASM_URL =
+  'https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-web-compiler@0.7.0/pkg/typst_ts_web_compiler_bg.wasm';
+export const FALLBACK_FILE_VIEWER_TYPST_RENDERER_WASM_URL =
   'https://cdn.jsdelivr.net/npm/@myriaddreamin/typst-ts-renderer@0.7.0/pkg/typst_ts_renderer_bg.wasm';
+export const DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_PACKAGE_PATH =
+  '@myriaddreamin/typst-ts-web-compiler/pkg/typst_ts_web_compiler_bg.wasm';
 export const DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_PACKAGE_PATH =
   '@myriaddreamin/typst-ts-renderer/pkg/typst_ts_renderer_bg.wasm';
-export const DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL =
-  'https://cdn.jsdelivr.net/npm/sql.js@1.14.1/dist/sql-wasm.wasm';
+export const DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL = 'wasm/data/sql-wasm.wasm';
+export const DEFAULT_FILE_VIEWER_DATA_SQL_WASM_PACKAGE_PATH = 'sql.js/dist/sql-wasm.wasm';
 
 export interface ResolveFileViewerAssetUrlOptions {
   baseUrl?: string;
@@ -183,22 +189,23 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         id: 'typst-compiler-wasm',
         rendererId: 'typst',
         kind: 'wasm',
-        target: 'external',
+        target: 'public',
         required: true,
-        defaultUrl: DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL,
+        defaultPath: DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL,
+        packagePath: DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_PACKAGE_PATH,
         optionPath: 'typst.compilerWasmUrl',
-        description: 'Typst compiler WebAssembly module; configurable for private CDN deployment.',
+        description: 'Typst compiler WebAssembly module copied to the public assets directory.',
       },
       {
         id: 'typst-renderer-wasm',
         rendererId: 'typst',
-        kind: 'bundled-wasm',
-        target: 'bundled',
+        kind: 'wasm',
+        target: 'public',
         required: true,
-        defaultUrl: DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_URL,
+        defaultPath: DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_URL,
         packagePath: DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_PACKAGE_PATH,
         optionPath: 'typst.rendererWasmUrl',
-        description: 'Typst SVG renderer WebAssembly module bundled by the active frontend build tool.',
+        description: 'Typst SVG renderer WebAssembly module copied to the public assets directory.',
       },
     ],
   },
@@ -209,11 +216,12 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         id: 'data-sql-wasm',
         rendererId: 'data-asset',
         kind: 'wasm',
-        target: 'external',
+        target: 'public',
         required: false,
-        defaultUrl: DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL,
+        defaultPath: DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL,
+        packagePath: DEFAULT_FILE_VIEWER_DATA_SQL_WASM_PACKAGE_PATH,
         optionPath: 'data.sqlWasmUrl',
-        description: 'sql.js WebAssembly module used when previewing SQLite files.',
+        description: 'sql.js WebAssembly module copied to the public assets directory for SQLite previews.',
       },
     ],
   },
@@ -294,29 +302,38 @@ export const resolveFileViewerSpreadsheetWorkerUrl = (
 
 export const resolveFileViewerTypstCompilerWasmUrl = (
   options?: Pick<FileViewerTypstOptions, 'compilerWasmUrl'> | null,
-  overrides: Array<string | undefined> = []
+  overrides: Array<string | undefined> = [],
+  documentBaseUrl?: string
 ) => {
-  return options?.compilerWasmUrl ||
-    overrides.find(Boolean) ||
-    DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL;
+  return resolveFileViewerAssetUrl(
+    options?.compilerWasmUrl || overrides.find(Boolean),
+    DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL,
+    { documentBaseUrl }
+  );
 };
 
 export const resolveFileViewerTypstRendererWasmUrl = (
   options?: Pick<FileViewerTypstOptions, 'rendererWasmUrl'> | null,
-  overrides: Array<string | undefined> = []
+  overrides: Array<string | undefined> = [],
+  documentBaseUrl?: string
 ) => {
-  return options?.rendererWasmUrl ||
-    overrides.find(Boolean) ||
-    DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_URL;
+  return resolveFileViewerAssetUrl(
+    options?.rendererWasmUrl || overrides.find(Boolean),
+    DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_URL,
+    { documentBaseUrl }
+  );
 };
 
 export const resolveFileViewerDataSqlWasmUrl = (
   options?: Pick<FileViewerDataOptions, 'sqlWasmUrl'> | null,
-  overrides: Array<string | undefined> = []
+  overrides: Array<string | undefined> = [],
+  documentBaseUrl?: string
 ) => {
-  return options?.sqlWasmUrl ||
-    overrides.find(Boolean) ||
-    DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL;
+  return resolveFileViewerAssetUrl(
+    options?.sqlWasmUrl || overrides.find(Boolean),
+    DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL,
+    { documentBaseUrl }
+  );
 };
 
 export const listFileViewerRendererAssetManifests = () => {

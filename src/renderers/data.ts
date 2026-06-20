@@ -184,7 +184,7 @@ const renderSqlite = async (
   const { default: initSqlJs } = await import('sql.js');
   const sqlWasmUrl = resolveFileViewerDataSqlWasmUrl(context?.options?.data, [
     getWindowSqlWasmOverride(documentRef),
-  ]);
+  ], documentRef.baseURI);
   const SQL = await initSqlJs({ locateFile: () => sqlWasmUrl });
   const db = new SQL.Database(new Uint8Array(buffer));
   try {

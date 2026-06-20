@@ -28,6 +28,7 @@ type ExcalidrawPoint = [number, number];
 const DIAGRAMS_VIEWER_URL = 'https://viewer.diagrams.net/js/viewer-static.min.js';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const EXCALIDRAW_OFFICIAL_TIMEOUT = 6000;
+const DRAWIO_OFFICIAL_TIMEOUT = 6000;
 
 const diagramsViewerPromises = new WeakMap<Document, Promise<void>>();
 
@@ -47,6 +48,7 @@ const drawingStyle = `
 .drawing-canvas .drawing-svg,.drawing-canvas svg{display:block;max-width:100%;height:auto;margin:0 auto;border-radius:10px;background:#fff;box-shadow:0 18px 42px rgba(15,23,42,.12)}
 .drawing-canvas .drawing-mxgraph{min-height:420px;overflow:hidden;border-radius:10px;background:#fff;box-shadow:0 18px 42px rgba(15,23,42,.12)}
 .drawing-state{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;padding:24px;color:#64748b;font-size:14px;font-weight:700;text-align:center}
+.drawing-state[hidden]{display:none!important}
 .drawing-state.error{color:#b42318}
 @media (max-width:720px){.drawing-toolbar{align-items:flex-start;flex-direction:column}.drawing-actions{width:100%;justify-content:space-between}.drawing-scroll{padding:12px}}
 `;
@@ -166,7 +168,10 @@ const suppressExcalidrawWorkerWarning = () => {
   const originalError = console.error;
   const patchedError = (...args: unknown[]) => {
     const message = args.map(arg => String(arg)).join(' ');
-    if (message.includes('Failed to use workers for subsetting')) {
+    if (
+      message.includes('Failed to use workers for subsetting') ||
+      message.includes('Failed to fetch font family')
+    ) {
       return;
     }
     originalError(...args);
@@ -445,7 +450,7 @@ const renderOfficialExcalidraw = async (
     appendRenderedSvg(target, svg, 'official');
   } finally {
     clearTimeout(restoreTimer);
-    restoreConsole();
+    setTimeout(restoreConsole, 3000);
   }
 };
 
@@ -470,7 +475,299 @@ const renderExcalidraw = async (documentRef: Document, text: string, target: HTM
   }
 };
 
-const renderDrawio = async (documentRef: Document, text: string, target: HTMLElement) => {
+const getDirectChild = (parent: Element, tagName: string) => {
+  return Array.from(parent.children).find(child => child.localName === tagName) || null;
+};
+
+const parseDrawioStyle = (style: string | null) => {
+  const entries = new Map<string, string>();
+  for (const item of (style || '').split(';')) {
+    if (!item) {
+      continue;
+    }
+    const [key, ...rest] = item.split('=');
+    entries.set(key, rest.join('=') || '1');
+  }
+  return entries;
+};
+
+const getDrawioStyleValue = (style: Map<string, string>, key: string, fallback: string) => {
+  const value = style.get(key);
+  return value && value !== 'none' ? value : fallback;
+};
+
+const parseDrawioGeometry = (cell: Element) => {
+  const geometry = getDirectChild(cell, 'mxGeometry');
+  if (!geometry) {
+    return null;
+  }
+  return {
+    x: toNumber(geometry.getAttribute('x')),
+    y: toNumber(geometry.getAttribute('y')),
+    width: Math.max(1, toNumber(geometry.getAttribute('width'), 80)),
+    height: Math.max(1, toNumber(geometry.getAttribute('height'), 40)),
+    points: Array.from(geometry.querySelectorAll('mxPoint')).map(point => ({
+      x: toNumber(point.getAttribute('x')),
+      y: toNumber(point.getAttribute('y')),
+    })),
+  };
+};
+
+const normalizeDrawioText = (documentRef: Document, value: string | null) => {
+  if (!value) {
+    return '';
+  }
+  const helper = documentRef.createElement('textarea');
+  helper.innerHTML = value;
+  return helper.value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+};
+
+const appendDrawioWrappedText = (
+  documentRef: Document,
+  svg: SVGSVGElement,
+  text: string,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  fontSize: number,
+  fill: string
+) => {
+  if (!text) {
+    return;
+  }
+
+  const textNode = createSvgElement<SVGTextElement>(documentRef, 'text');
+  const maxChars = Math.max(4, Math.floor(width / Math.max(7, fontSize * 0.55)));
+  const words = text.includes(' ') ? text.split(/\s+/) : text.match(new RegExp(`.{1,${maxChars}}`, 'g')) || [text];
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) {
+    lines.push(current);
+  }
+
+  const lineHeight = fontSize * 1.24;
+  const totalHeight = lineHeight * lines.length;
+  textNode.setAttribute('x', String(x + width / 2));
+  textNode.setAttribute('y', String(y + height / 2 - totalHeight / 2 + fontSize));
+  textNode.setAttribute('fill', fill);
+  textNode.setAttribute('font-size', String(fontSize));
+  textNode.setAttribute('font-family', 'Inter, Segoe UI, Arial, sans-serif');
+  textNode.setAttribute('font-weight', '600');
+  textNode.setAttribute('text-anchor', 'middle');
+  textNode.setAttribute('pointer-events', 'none');
+
+  lines.slice(0, 5).forEach((line, index) => {
+    const lineNode = createSvgElement<SVGTSpanElement>(documentRef, 'tspan');
+    lineNode.setAttribute('x', String(x + width / 2));
+    lineNode.setAttribute('dy', index === 0 ? '0' : String(lineHeight));
+    lineNode.textContent = line;
+    textNode.appendChild(lineNode);
+  });
+  svg.appendChild(textNode);
+};
+
+const renderDrawioFallback = (documentRef: Document, text: string, target: HTMLElement) => {
+  const parser = new DOMParser();
+  const parsed = parser.parseFromString(text, 'text/xml');
+  const parseError = parsed.querySelector('parsererror');
+  if (parseError) {
+    throw new Error(`Draw.io XML 解析失败：${parseError.textContent || 'invalid xml'}`);
+  }
+
+  const firstDiagram = parsed.querySelector('diagram');
+  const graphModel = firstDiagram?.querySelector('mxGraphModel') || parsed.querySelector('mxGraphModel');
+  if (!graphModel) {
+    throw new Error('当前 Draw.io 文件没有可直接渲染的 mxGraphModel。');
+  }
+
+  const cells = Array.from(graphModel.querySelectorAll('mxCell'));
+  const vertices = cells
+    .filter(cell => cell.getAttribute('vertex') === '1' && cell.getAttribute('connectable') !== '0')
+    .map(cell => ({
+      cell,
+      id: cell.getAttribute('id') || '',
+      geometry: parseDrawioGeometry(cell),
+      style: parseDrawioStyle(cell.getAttribute('style')),
+      text: normalizeDrawioText(documentRef, cell.getAttribute('value')),
+    }))
+    .filter(item => item.id && item.geometry);
+  if (!vertices.length) {
+    throw new Error('当前 Draw.io 文件没有可预览图元。');
+  }
+
+  const vertexById = new Map(vertices.map(vertex => [vertex.id, vertex]));
+  const allX = vertices.flatMap(vertex => [vertex.geometry!.x, vertex.geometry!.x + vertex.geometry!.width]);
+  const allY = vertices.flatMap(vertex => [vertex.geometry!.y, vertex.geometry!.y + vertex.geometry!.height]);
+  const edgePoints: Array<{ x: number; y: number }> = [];
+  const edges = cells.filter(cell => cell.getAttribute('edge') === '1');
+  for (const edge of edges) {
+    const source = vertexById.get(edge.getAttribute('source') || '');
+    const targetVertex = vertexById.get(edge.getAttribute('target') || '');
+    const geometry = parseDrawioGeometry(edge);
+    if (source?.geometry) {
+      edgePoints.push({
+        x: source.geometry.x + source.geometry.width / 2,
+        y: source.geometry.y + source.geometry.height / 2,
+      });
+    }
+    geometry?.points.forEach(point => edgePoints.push(point));
+    if (targetVertex?.geometry) {
+      edgePoints.push({
+        x: targetVertex.geometry.x + targetVertex.geometry.width / 2,
+        y: targetVertex.geometry.y + targetVertex.geometry.height / 2,
+      });
+    }
+  }
+  allX.push(...edgePoints.map(point => point.x));
+  allY.push(...edgePoints.map(point => point.y));
+
+  const padding = 96;
+  const minX = Math.min(...allX) - padding;
+  const minY = Math.min(...allY) - padding;
+  const width = Math.max(480, Math.max(...allX) - Math.min(...allX) + padding * 2);
+  const height = Math.max(320, Math.max(...allY) - Math.min(...allY) + padding * 2);
+  const svg = createSvgElement<SVGSVGElement>(documentRef, 'svg');
+  svg.setAttribute('viewBox', `${minX} ${minY} ${width} ${height}`);
+  svg.setAttribute('width', String(Math.ceil(width)));
+  svg.setAttribute('height', String(Math.ceil(height)));
+  svg.setAttribute('role', 'img');
+  svg.setAttribute('aria-label', firstDiagram?.getAttribute('name') || 'Draw.io local SVG preview');
+
+  const defs = createSvgElement<SVGDefsElement>(documentRef, 'defs');
+  const marker = createSvgElement<SVGMarkerElement>(documentRef, 'marker');
+  marker.setAttribute('id', 'drawio-arrow');
+  marker.setAttribute('viewBox', '0 0 10 10');
+  marker.setAttribute('refX', '9');
+  marker.setAttribute('refY', '5');
+  marker.setAttribute('markerWidth', '7');
+  marker.setAttribute('markerHeight', '7');
+  marker.setAttribute('orient', 'auto-start-reverse');
+  const arrow = createSvgElement<SVGPathElement>(documentRef, 'path');
+  arrow.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+  arrow.setAttribute('fill', '#64748b');
+  marker.appendChild(arrow);
+  defs.appendChild(marker);
+  svg.appendChild(defs);
+
+  const background = createSvgElement<SVGRectElement>(documentRef, 'rect');
+  background.setAttribute('x', String(minX));
+  background.setAttribute('y', String(minY));
+  background.setAttribute('width', String(width));
+  background.setAttribute('height', String(height));
+  background.setAttribute('fill', '#ffffff');
+  svg.appendChild(background);
+
+  for (const edge of edges) {
+    const source = vertexById.get(edge.getAttribute('source') || '');
+    const targetVertex = vertexById.get(edge.getAttribute('target') || '');
+    if (!source?.geometry || !targetVertex?.geometry) {
+      continue;
+    }
+    const style = parseDrawioStyle(edge.getAttribute('style'));
+    const stroke = getDrawioStyleValue(style, 'strokeColor', '#64748b');
+    const points = [
+      {
+        x: source.geometry.x + source.geometry.width / 2,
+        y: source.geometry.y + source.geometry.height / 2,
+      },
+      ...(parseDrawioGeometry(edge)?.points || []),
+      {
+        x: targetVertex.geometry.x + targetVertex.geometry.width / 2,
+        y: targetVertex.geometry.y + targetVertex.geometry.height / 2,
+      },
+    ];
+    const polyline = createSvgElement<SVGPolylineElement>(documentRef, 'polyline');
+    polyline.setAttribute('points', points.map(point => `${point.x},${point.y}`).join(' '));
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', stroke);
+    polyline.setAttribute('stroke-width', '2');
+    if (style.get('dashed') === '1') {
+      polyline.setAttribute('stroke-dasharray', '8 7');
+    }
+    if (style.get('endArrow') !== 'none') {
+      polyline.setAttribute('marker-end', 'url(#drawio-arrow)');
+    }
+    svg.appendChild(polyline);
+  }
+
+  for (const vertex of vertices) {
+    const geometry = vertex.geometry!;
+    const fill = getDrawioStyleValue(vertex.style, 'fillColor', '#f8fafc');
+    const stroke = getDrawioStyleValue(vertex.style, 'strokeColor', '#64748b');
+    const fontSize = Math.max(10, toNumber(vertex.style.get('fontSize'), 14));
+    const shape = vertex.style.has('ellipse')
+      ? 'ellipse'
+      : vertex.style.get('shape') === 'rhombus'
+        ? 'diamond'
+        : 'rect';
+
+    if (shape === 'ellipse') {
+      const ellipse = createSvgElement<SVGEllipseElement>(documentRef, 'ellipse');
+      ellipse.setAttribute('cx', String(geometry.x + geometry.width / 2));
+      ellipse.setAttribute('cy', String(geometry.y + geometry.height / 2));
+      ellipse.setAttribute('rx', String(geometry.width / 2));
+      ellipse.setAttribute('ry', String(geometry.height / 2));
+      ellipse.setAttribute('fill', fill);
+      ellipse.setAttribute('stroke', stroke);
+      ellipse.setAttribute('stroke-width', '2');
+      svg.appendChild(ellipse);
+    } else if (shape === 'diamond') {
+      const diamond = createSvgElement<SVGPolygonElement>(documentRef, 'polygon');
+      diamond.setAttribute('points', [
+        `${geometry.x + geometry.width / 2},${geometry.y}`,
+        `${geometry.x + geometry.width},${geometry.y + geometry.height / 2}`,
+        `${geometry.x + geometry.width / 2},${geometry.y + geometry.height}`,
+        `${geometry.x},${geometry.y + geometry.height / 2}`,
+      ].join(' '));
+      diamond.setAttribute('fill', fill);
+      diamond.setAttribute('stroke', stroke);
+      diamond.setAttribute('stroke-width', '2');
+      svg.appendChild(diamond);
+    } else {
+      const rect = createSvgElement<SVGRectElement>(documentRef, 'rect');
+      rect.setAttribute('x', String(geometry.x));
+      rect.setAttribute('y', String(geometry.y));
+      rect.setAttribute('width', String(geometry.width));
+      rect.setAttribute('height', String(geometry.height));
+      rect.setAttribute('rx', vertex.style.get('rounded') === '1' ? '10' : '2');
+      rect.setAttribute('fill', fill);
+      rect.setAttribute('stroke', stroke);
+      rect.setAttribute('stroke-width', '2');
+      svg.appendChild(rect);
+    }
+
+    appendDrawioWrappedText(
+      documentRef,
+      svg,
+      vertex.text,
+      geometry.x,
+      geometry.y,
+      geometry.width,
+      geometry.height,
+      fontSize,
+      getDrawioStyleValue(vertex.style, 'fontColor', '#172033')
+    );
+  }
+
+  appendRenderedSvg(target, svg, 'rough');
+};
+
+const renderOfficialDrawio = async (documentRef: Document, text: string, target: HTMLElement) => {
   const ownerWindow = documentRef.defaultView || (typeof window !== 'undefined' ? window : undefined);
   await loadDiagramsViewer(documentRef);
   await waitForFileViewerNextPaint(ownerWindow);
@@ -496,6 +793,23 @@ const renderDrawio = async (documentRef: Document, text: string, target: HTMLEle
   }
 
   ownerWindow.GraphViewer.createViewerForElement(host);
+  markRendered(target, 'official');
+};
+
+const renderDrawio = async (documentRef: Document, text: string, target: HTMLElement) => {
+  try {
+    await runWithTimeout(
+      renderOfficialDrawio(documentRef, text, target),
+      DRAWIO_OFFICIAL_TIMEOUT,
+      'diagrams.net 官方 Viewer 加载超时，自动切换本地 SVG 预览'
+    );
+  } catch (error) {
+    console.warn(error);
+    diagramsViewerPromises.delete(documentRef);
+    delete target.dataset.drawingRendered;
+    target.replaceChildren();
+    renderDrawioFallback(documentRef, text, target);
+  }
 };
 
 export default async function renderDrawing(

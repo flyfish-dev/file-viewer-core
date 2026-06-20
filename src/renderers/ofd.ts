@@ -21,6 +21,7 @@ const ofdStyle = `
 .ofd-viewer *{box-sizing:border-box}
 .ofd-stage{min-height:100%;padding:18px 0 28px;overflow:auto;scrollbar-gutter:stable}
 .ofd-state{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;background:rgba(246,248,250,.92);color:#64748b;font-size:14px}
+.ofd-state[hidden]{display:none!important}
 .ofd-state.error{color:#b42318}
 .ofd-page-frame{position:relative;display:block;margin:0 auto 20px;overflow:visible}
 .ofd-page{display:block;margin-left:auto!important;margin-right:auto!important;box-shadow:0 10px 26px rgba(15,23,42,.12);transition:transform .16s ease}

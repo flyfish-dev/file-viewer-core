@@ -51,6 +51,7 @@ const epubStyle = `
 .epub-stage .epub-container{width:100%!important;max-width:100%;overflow-x:hidden!important;overflow-y:auto!important}
 .epub-stage iframe{max-width:100%}
 .epub-state{position:absolute;inset:18px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:rgba(255,255,255,.92);color:#64748b;font-size:14px}
+.epub-state[hidden]{display:none!important}
 .epub-state.error{color:#b42318}
 .file-viewer[data-viewer-theme='dark'] .epub-viewer{background:#172033;color:#e5eef8}
 .file-viewer[data-viewer-theme='dark'] .epub-toolbar,.file-viewer[data-viewer-theme='dark'] .epub-toc,.file-viewer[data-viewer-theme='dark'] .epub-stage{background:#fff;color:#172033}
