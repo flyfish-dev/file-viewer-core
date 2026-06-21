@@ -4,9 +4,11 @@ import {
 } from '../features/document/dom';
 import { createFileViewerZoomChangeEmitter } from '../features/document/zoom';
 import { waitForFileViewerNextPaint } from '../output/export';
+import { resolveFileViewerDrawioViewerScriptUrl } from '../platform/assets';
 import { readFileViewerText } from '../source';
 import type {
   FileRenderContext,
+  FileViewerDrawingOptions,
   FileViewerRenderedInstance,
   FileViewerZoomState,
 } from '../contracts/types';
@@ -25,12 +27,11 @@ type DrawingKind = 'excalidraw' | 'drawio';
 type ExcalidrawElement = Record<string, any>;
 type ExcalidrawPoint = [number, number];
 
-const DIAGRAMS_VIEWER_URL = 'https://viewer.diagrams.net/js/viewer-static.min.js';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const EXCALIDRAW_OFFICIAL_TIMEOUT = 6000;
 const DRAWIO_OFFICIAL_TIMEOUT = 6000;
 
-const diagramsViewerPromises = new WeakMap<Document, Promise<void>>();
+const diagramsViewerPromises = new WeakMap<Document, Map<string, Promise<void>>>();
 
 const drawingStyle = `
 .drawing-viewer{display:flex;height:100%;min-height:360px;flex-direction:column;background:#edf2f7;color:#172033}
@@ -101,19 +102,94 @@ const isTransparent = (color?: string) => {
   return !color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)';
 };
 
-const loadDiagramsViewer = (documentRef: Document) => {
+const resolveDrawingViewerScriptUrl = (options?: FileViewerDrawingOptions, documentRef?: Document) => {
+  return resolveFileViewerDrawioViewerScriptUrl(options, documentRef?.baseURI || documentRef?.URL);
+};
+
+const resolveDirectoryUrl = (url: string) => {
+  try {
+    return new URL('.', url).href;
+  } catch {
+    const slashIndex = url.lastIndexOf('/');
+    return slashIndex >= 0 ? url.slice(0, slashIndex + 1) : '';
+  }
+};
+
+const configureOfflineDiagramsViewerAssets = (documentRef: Document, scriptUrl: string) => {
+  const ownerWindow = documentRef.defaultView || (typeof window !== 'undefined' ? window : undefined);
+  if (!ownerWindow) {
+    return;
+  }
+
+  const viewerWindow = ownerWindow as unknown as Window & Record<string, unknown>;
+  const baseUrl = resolveDirectoryUrl(scriptUrl);
+  const setDefault = (key: string, value: unknown) => {
+    if (viewerWindow[key] === undefined || viewerWindow[key] === '') {
+      viewerWindow[key] = value;
+    }
+  };
+
+  // viewer-static.min.js still contains public diagrams.net defaults. Setting
+  // these before the script executes keeps every secondary asset on the same
+  // self-hosted directory as the viewer script.
+  setDefault('PROXY_URL', `${baseUrl}proxy`);
+  setDefault('STYLE_PATH', `${baseUrl}styles`);
+  setDefault('SHAPES_PATH', `${baseUrl}shapes`);
+  setDefault('STENCIL_PATH', `${baseUrl}stencils`);
+  setDefault('DRAW_MATH_URL', `${baseUrl}math4/es5`);
+  setDefault('GRAPH_IMAGE_PATH', `${baseUrl}img`);
+  setDefault('mxImageBasePath', `${baseUrl}mxgraph/images`);
+  setDefault('mxBasePath', `${baseUrl}mxgraph/`);
+  setDefault('mxLoadStylesheets', false);
+  setDefault('DRAWIO_BASE_URL', baseUrl.replace(/\/$/, ''));
+  setDefault('DRAWIO_LIGHTBOX_URL', baseUrl.replace(/\/$/, ''));
+  setDefault('DRAWIO_SERVER_URL', baseUrl);
+  setDefault('DRAWIO_VIEWER_URL', `${baseUrl}viewer-static.min.js`);
+  setDefault('DRAWIO_LOG_URL', '');
+  setDefault('EXPORT_URL', `${baseUrl}export`);
+  setDefault('PLANT_URL', `${baseUrl}plant`);
+  setDefault('VSS_CONVERT_URL', `${baseUrl}VsdConverter/api/converter`);
+  setDefault('DRAWIO_GITLAB_URL', baseUrl);
+  setDefault('DRAWIO_GITHUB_URL', baseUrl);
+  setDefault('DRAWIO_GITHUB_API_URL', baseUrl);
+  setDefault('RT_WEBSOCKET_URL', `${baseUrl}rt`);
+  setDefault('NOTIFICATIONS_URL', `${baseUrl}notifications`);
+};
+
+const getDiagramsViewerPromiseMap = (documentRef: Document) => {
+  let promiseMap = diagramsViewerPromises.get(documentRef);
+  if (!promiseMap) {
+    promiseMap = new Map<string, Promise<void>>();
+    diagramsViewerPromises.set(documentRef, promiseMap);
+  }
+  return promiseMap;
+};
+
+const deleteDiagramsViewerPromise = (documentRef: Document, scriptUrl: string) => {
+  const promiseMap = diagramsViewerPromises.get(documentRef);
+  promiseMap?.delete(scriptUrl);
+  if (promiseMap && promiseMap.size === 0) {
+    diagramsViewerPromises.delete(documentRef);
+  }
+};
+
+const loadDiagramsViewer = (documentRef: Document, scriptUrl: string) => {
   const ownerWindow = documentRef.defaultView || (typeof window !== 'undefined' ? window : undefined);
   if (ownerWindow?.GraphViewer) {
     return Promise.resolve();
   }
 
-  const existingPromise = diagramsViewerPromises.get(documentRef);
+  configureOfflineDiagramsViewerAssets(documentRef, scriptUrl);
+
+  const promiseMap = getDiagramsViewerPromiseMap(documentRef);
+  const existingPromise = promiseMap.get(scriptUrl);
   if (existingPromise) {
     return existingPromise;
   }
 
   const nextPromise = new Promise<void>((resolve, reject) => {
-    const existed = documentRef.querySelector<HTMLScriptElement>(`script[src="${DIAGRAMS_VIEWER_URL}"]`);
+    const existed = Array.from(documentRef.querySelectorAll<HTMLScriptElement>('script[src]'))
+      .find(script => script.src === scriptUrl);
     if (existed) {
       existed.addEventListener('load', () => resolve(), { once: true });
       existed.addEventListener('error', () => reject(new Error('diagrams.net viewer 加载失败')), { once: true });
@@ -121,14 +197,14 @@ const loadDiagramsViewer = (documentRef: Document) => {
     }
 
     const script = documentRef.createElement('script');
-    script.src = DIAGRAMS_VIEWER_URL;
+    script.src = scriptUrl;
     script.async = true;
     script.onload = () => resolve();
     script.onerror = () => reject(new Error('diagrams.net viewer 加载失败'));
     documentRef.head.appendChild(script);
   });
 
-  diagramsViewerPromises.set(documentRef, nextPromise);
+  promiseMap.set(scriptUrl, nextPromise);
   return nextPromise;
 };
 
@@ -767,9 +843,14 @@ const renderDrawioFallback = (documentRef: Document, text: string, target: HTMLE
   appendRenderedSvg(target, svg, 'rough');
 };
 
-const renderOfficialDrawio = async (documentRef: Document, text: string, target: HTMLElement) => {
+const renderOfficialDrawio = async (
+  documentRef: Document,
+  text: string,
+  target: HTMLElement,
+  scriptUrl: string
+) => {
   const ownerWindow = documentRef.defaultView || (typeof window !== 'undefined' ? window : undefined);
-  await loadDiagramsViewer(documentRef);
+  await loadDiagramsViewer(documentRef, scriptUrl);
   await waitForFileViewerNextPaint(ownerWindow);
 
   const host = createElement(documentRef, 'div', 'mxgraph drawing-mxgraph');
@@ -796,16 +877,27 @@ const renderOfficialDrawio = async (documentRef: Document, text: string, target:
   markRendered(target, 'official');
 };
 
-const renderDrawio = async (documentRef: Document, text: string, target: HTMLElement) => {
+const renderDrawio = async (
+  documentRef: Document,
+  text: string,
+  target: HTMLElement,
+  options?: FileViewerDrawingOptions
+) => {
+  if (options?.preferOfficial === false) {
+    renderDrawioFallback(documentRef, text, target);
+    return;
+  }
+  const scriptUrl = resolveDrawingViewerScriptUrl(options, documentRef);
+
   try {
     await runWithTimeout(
-      renderOfficialDrawio(documentRef, text, target),
+      renderOfficialDrawio(documentRef, text, target, scriptUrl),
       DRAWIO_OFFICIAL_TIMEOUT,
       'diagrams.net 官方 Viewer 加载超时，自动切换本地 SVG 预览'
     );
   } catch (error) {
     console.warn(error);
-    diagramsViewerPromises.delete(documentRef);
+    deleteDiagramsViewerPromise(documentRef, scriptUrl);
     delete target.dataset.drawingRendered;
     target.replaceChildren();
     renderDrawioFallback(documentRef, text, target);
@@ -816,7 +908,7 @@ export default async function renderDrawing(
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   type = 'drawio',
-  _context?: FileRenderContext
+  context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> {
   const documentRef = target.ownerDocument || document;
   const kind = normalizeDrawingType(type);
@@ -835,7 +927,7 @@ export default async function renderDrawing(
     createElement(documentRef, 'span', undefined, formatDrawingLabel(type)),
     createElement(documentRef, 'strong', undefined, kind === 'excalidraw'
       ? 'Excalidraw 官方 SVG 预览'
-      : 'diagrams.net 官方 Viewer 预览')
+      : 'Draw.io 离线 SVG 预览')
   );
   const actions = createElement(documentRef, 'div', 'drawing-actions');
   const zoomOutButton = createElement(documentRef, 'button', undefined, '-') as HTMLButtonElement;
@@ -900,7 +992,7 @@ export default async function renderDrawing(
     state.classList.toggle('error', status === 'error');
     state.textContent = status === 'error'
       ? errorMessage
-      : '正在加载官方绘图预览器...';
+      : '正在加载绘图预览...';
     applyZoom();
   };
 
@@ -919,7 +1011,7 @@ export default async function renderDrawing(
       if (kind === 'excalidraw') {
         await renderExcalidraw(documentRef, text, canvas);
       } else {
-        await renderDrawio(documentRef, text, canvas);
+        await renderDrawio(documentRef, text, canvas, context?.options?.drawing);
       }
       if (disposed) {
         return;

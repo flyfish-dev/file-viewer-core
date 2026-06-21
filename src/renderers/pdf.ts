@@ -3,7 +3,6 @@ import {
   GlobalWorkerOptions,
   PDFWorker as PdfJsWorker,
   PixelsPerInch,
-  version,
 } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import {
   EventBus,
@@ -23,6 +22,10 @@ import {
   buildPrintPageStyle,
   formatCssPixels,
 } from '../output/printLayout';
+import {
+  DEFAULT_FILE_VIEWER_PDF_WORKER_PATH,
+  resolveFileViewerPdfAssetUrls,
+} from '../platform/assets';
 import { DEFAULT_PDF_RANGE_CHUNK_SIZE } from '../source/loading';
 import type {
   FileRenderContext,
@@ -36,7 +39,7 @@ import type {
 import { pdfViewerStyle } from './pdfStyles';
 
 export const DEFAULT_FILE_VIEWER_PDF_WORKER_URL =
-  `https://npm.onmicrosoft.cn/pdfjs-dist@${version}/legacy/build/pdf.worker.mjs`;
+  DEFAULT_FILE_VIEWER_PDF_WORKER_PATH;
 
 const MIN_SCALE = 0.2;
 const MAX_SCALE = 3;
@@ -153,15 +156,7 @@ const resolvePdfWorkerUrl = (
   options: FileViewerPdfOptions | undefined,
   documentUrl?: string
 ) => {
-  const configured = options?.workerUrl;
-  if (!configured) {
-    return DEFAULT_FILE_VIEWER_PDF_WORKER_URL;
-  }
-  try {
-    return documentUrl ? new URL(configured, documentUrl).href : configured;
-  } catch {
-    return configured;
-  }
+  return resolveFileViewerPdfAssetUrls(options, documentUrl).workerUrl;
 };
 
 const buildOutlineItems = (
@@ -884,6 +879,10 @@ export default async function renderPdf(
       }
 
       const worker = createPdfWorker();
+      const pdfAssets = resolveFileViewerPdfAssetUrls(
+        options,
+        documentRef.URL || documentRef.baseURI
+      );
       const source = context?.streamUrl
         ? {
             url: context.streamUrl,
@@ -896,8 +895,9 @@ export default async function renderPdf(
       const loadingTask = getDocument({
         ...source,
         worker: worker || undefined,
-        cMapUrl: `https://npm.onmicrosoft.cn/pdfjs-dist@${version}/cmaps/`,
-        wasmUrl: `https://npm.onmicrosoft.cn/pdfjs-dist@${version}/wasm/`,
+        cMapUrl: pdfAssets.cMapUrl,
+        wasmUrl: pdfAssets.wasmUrl,
+        standardFontDataUrl: pdfAssets.standardFontDataUrl,
         useWorkerFetch: true,
         cMapPacked: true,
         enableXfa: true,

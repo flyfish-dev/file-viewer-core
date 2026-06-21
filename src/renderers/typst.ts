@@ -1,7 +1,5 @@
 import { $typst } from '@myriaddreamin/typst.ts';
 import {
-  FALLBACK_FILE_VIEWER_TYPST_COMPILER_WASM_URL,
-  FALLBACK_FILE_VIEWER_TYPST_RENDERER_WASM_URL,
   resolveFileViewerTypstCompilerWasmUrl,
   resolveFileViewerTypstRendererWasmUrl,
 } from '../platform/assets';
@@ -31,7 +29,7 @@ type TypstRenderState = 'loading' | 'ready' | 'source' | 'error';
 interface TypstEngineAssetCandidate {
   compilerWasmUrl: string;
   rendererWasmUrl: string;
-  source: 'configured' | 'local' | 'cdn';
+  source: 'configured' | 'local';
   preflight: boolean;
 }
 
@@ -170,16 +168,6 @@ const resolveTypstEngineCandidates = (
     rendererWasmUrl,
     source: hasConfiguredAsset ? 'configured' : 'local',
     preflight: !hasConfiguredAsset,
-  });
-
-  // Static hosts such as Cloudflare Pages reject files larger than 25 MiB.
-  // Keep the package self-contained, but let hosted demos fall back gracefully
-  // when the local compiler WASM was intentionally omitted from deployment.
-  pushUniqueTypstCandidate(candidates, {
-    compilerWasmUrl: FALLBACK_FILE_VIEWER_TYPST_COMPILER_WASM_URL,
-    rendererWasmUrl: FALLBACK_FILE_VIEWER_TYPST_RENDERER_WASM_URL,
-    source: 'cdn',
-    preflight: false,
   });
 
   return candidates;
@@ -657,8 +645,10 @@ export default async function renderTypst(
       if (disposed || token !== renderToken) {
         return;
       }
-      if (error instanceof TypstRenderTimeoutError) {
-        sourceFallbackMessage = error.message;
+      if (error instanceof TypstRenderTimeoutError || isTypstAssetLoadError(error)) {
+        sourceFallbackMessage = error instanceof TypstRenderTimeoutError
+          ? error.message
+          : 'Typst WASM 静态资源不可用，已切换为源码预览。请运行 file-viewer-copy-assets 或配置 options.typst.compilerWasmUrl / options.typst.rendererWasmUrl。';
         state = 'source';
         syncUi();
         context?.onProgressiveRender?.();
