@@ -1,6 +1,6 @@
 {
   "name": "@file-viewer/core",
-  "version": "2.0.9",
+  "version": "2.0.10",
   "private": false,
   "type": "module",
   "description": "Framework-neutral TypeScript core for Flyfish File Viewer",
@@ -62,8 +62,8 @@
   },
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.1",
-    "@file-viewer/docx": "^0.3.9",
-    "@file-viewer/pptx": "^2.0.9",
+    "@file-viewer/docx": "^0.3.10",
+    "@file-viewer/pptx": "^2.0.10",
     "@flyfish-dev/cad-viewer": "^0.6.4",
     "@kenjiuno/msgreader": "^1.28.0",
     "@myriaddreamin/typst-ts-renderer": "0.7.0",

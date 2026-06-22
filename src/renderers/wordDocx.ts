@@ -35,6 +35,7 @@ const DOCX_MIN_SCALE = 0.24
 const DOCX_MAX_SCALE = 3
 const DOCX_ZOOM_STEP = 0.15
 const DOCX_EMU_PER_CSS_PIXEL = 9525
+const ZIP_SIGNATURE_PK = 0x504b
 
 type DocxZip = JSZip
 
@@ -89,6 +90,20 @@ const loadLibrary = (() => {
     return await loader.load();
   }
 })()
+
+/**
+ * DOCX / DOCM / DOTX / DOTM are OOXML packages, so a valid file must start
+ * with a ZIP signature. This catches common enterprise download failures where
+ * an object-storage XML error page is saved with a `.docx` extension.
+ */
+const assertValidDocxPackage = (buffer: ArrayBuffer) => {
+  const signature = buffer.byteLength >= 4 ? new DataView(buffer).getUint16(0, false) : 0
+  if (signature === ZIP_SIGNATURE_PK) {
+    return
+  }
+
+  throw new Error('文件不是有效的 DOCX/OOXML 压缩包，可能下载不完整或被服务端错误内容替换，请重新上传或检查文件源。')
+}
 
 const createDocxOptions = (
   target: HTMLDivElement,
@@ -1124,6 +1139,8 @@ function prepareDocxCloneForExport(target: HTMLDivElement) {
  * 渲染docx文件
  */
 export default async function(buffer: ArrayBuffer, target: HTMLDivElement, context?: FileRenderContext): Promise<AppWrapper> {
+  assertValidDocxPackage(buffer)
+
   let hasNotifiedProgressiveRender = false
   const notifyProgressiveRender = () => {
     if (hasNotifiedProgressiveRender) {
