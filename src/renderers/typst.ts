@@ -24,7 +24,7 @@ declare global {
   }
 }
 
-type TypstRenderState = 'loading' | 'ready' | 'source' | 'error';
+type TypstRenderState = 'loading' | 'ready' | 'error';
 
 interface TypstEngineAssetCandidate {
   compilerWasmUrl: string;
@@ -55,11 +55,6 @@ const typstStyle = `
 .typst-loading p{margin:0;color:#6a778b;font-size:13px}
 .typst-error{color:#9f1d1d}
 .typst-error pre{max-height:360px;margin:14px 0 0;overflow:auto;border-radius:10px;background:#fff1f2;color:#9f1d1d;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;font-size:12px;line-height:1.7;padding:14px;white-space:pre-wrap}
-.typst-source-fallback{box-sizing:border-box;width:min(1040px,calc(100% - 32px));margin:28px auto 44px;border:1px solid rgba(20,35,53,.1);border-radius:16px;background:#fff;box-shadow:0 18px 44px rgba(15,23,42,.14);overflow:hidden}
-.typst-source-fallback header{padding:18px 20px;border-bottom:1px solid rgba(120,134,155,.18);background:linear-gradient(135deg,#f0fdf4,#eff6ff)}
-.typst-source-fallback strong{display:block;color:#172033;font-size:15px;font-weight:850}
-.typst-source-fallback p{margin:6px 0 0;color:#5f6e84;font-size:13px;line-height:1.7}
-.typst-source-fallback pre{box-sizing:border-box;max-height:none;margin:0;overflow:auto;background:#0f172a;color:#e2e8f0;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono',monospace;font-size:13px;line-height:1.75;padding:20px;tab-size:2;white-space:pre}
 .file-viewer[data-viewer-theme='dark'] .typst-viewer{background:#101820;color:#e6edf3}
 .file-viewer[data-viewer-theme='dark'] .typst-toolbar{border-bottom-color:rgba(139,148,158,.22);background:rgba(15,23,42,.9)}
 .file-viewer[data-viewer-theme='dark'] .typst-toolbar strong{color:#f8fafc}
@@ -67,21 +62,17 @@ const typstStyle = `
 .file-viewer[data-viewer-theme='dark'] .typst-page-shell{border-color:rgba(139,148,158,.26);box-shadow:0 24px 56px rgba(0,0,0,.38)}
 .file-viewer[data-viewer-theme='dark'] .typst-loading,.file-viewer[data-viewer-theme='dark'] .typst-error{border-color:rgba(139,148,158,.22);background:#151b23;box-shadow:0 24px 56px rgba(0,0,0,.32)}
 .file-viewer[data-viewer-theme='dark'] .typst-loading strong,.file-viewer[data-viewer-theme='dark'] .typst-error strong{color:#f8fafc}
-.file-viewer[data-viewer-theme='dark'] .typst-source-fallback{border-color:rgba(139,148,158,.26);background:#151b23;box-shadow:0 24px 56px rgba(0,0,0,.32)}
-.file-viewer[data-viewer-theme='dark'] .typst-source-fallback header{border-bottom-color:rgba(139,148,158,.22);background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(59,130,246,.16))}
-.file-viewer[data-viewer-theme='dark'] .typst-source-fallback strong{color:#f8fafc}
-.file-viewer[data-viewer-theme='dark'] .typst-source-fallback p{color:#9aa7b8}
 @keyframes typst-spin{to{transform:rotate(360deg)}}
 @media (max-width:767px){.typst-toolbar{align-items:flex-start;flex-direction:column;gap:4px}.typst-pages{gap:16px;padding:16px 10px 28px}}
-@media (prefers-color-scheme:dark){.file-viewer[data-viewer-theme='system'] .typst-viewer{background:#101820;color:#e6edf3}.file-viewer[data-viewer-theme='system'] .typst-toolbar{border-bottom-color:rgba(139,148,158,.22);background:rgba(15,23,42,.9)}.file-viewer[data-viewer-theme='system'] .typst-toolbar strong{color:#f8fafc}.file-viewer[data-viewer-theme='system'] .typst-toolbar span,.file-viewer[data-viewer-theme='system'] .typst-toolbar em{color:#9aa7b8}.file-viewer[data-viewer-theme='system'] .typst-page-shell{border-color:rgba(139,148,158,.26);box-shadow:0 24px 56px rgba(0,0,0,.38)}.file-viewer[data-viewer-theme='system'] .typst-loading,.file-viewer[data-viewer-theme='system'] .typst-error{border-color:rgba(139,148,158,.22);background:#151b23;box-shadow:0 24px 56px rgba(0,0,0,.32)}.file-viewer[data-viewer-theme='system'] .typst-loading strong,.file-viewer[data-viewer-theme='system'] .typst-error strong{color:#f8fafc}.file-viewer[data-viewer-theme='system'] .typst-source-fallback{border-color:rgba(139,148,158,.26);background:#151b23;box-shadow:0 24px 56px rgba(0,0,0,.32)}.file-viewer[data-viewer-theme='system'] .typst-source-fallback header{border-bottom-color:rgba(139,148,158,.22);background:linear-gradient(135deg,rgba(16,185,129,.18),rgba(59,130,246,.16))}.file-viewer[data-viewer-theme='system'] .typst-source-fallback strong{color:#f8fafc}.file-viewer[data-viewer-theme='system'] .typst-source-fallback p{color:#9aa7b8}}
+@media (prefers-color-scheme:dark){.file-viewer[data-viewer-theme='system'] .typst-viewer{background:#101820;color:#e6edf3}.file-viewer[data-viewer-theme='system'] .typst-toolbar{border-bottom-color:rgba(139,148,158,.22);background:rgba(15,23,42,.9)}.file-viewer[data-viewer-theme='system'] .typst-toolbar strong{color:#f8fafc}.file-viewer[data-viewer-theme='system'] .typst-toolbar span,.file-viewer[data-viewer-theme='system'] .typst-toolbar em{color:#9aa7b8}.file-viewer[data-viewer-theme='system'] .typst-page-shell{border-color:rgba(139,148,158,.26);box-shadow:0 24px 56px rgba(0,0,0,.38)}.file-viewer[data-viewer-theme='system'] .typst-loading,.file-viewer[data-viewer-theme='system'] .typst-error{border-color:rgba(139,148,158,.22);background:#151b23;box-shadow:0 24px 56px rgba(0,0,0,.32)}.file-viewer[data-viewer-theme='system'] .typst-loading strong,.file-viewer[data-viewer-theme='system'] .typst-error strong{color:#f8fafc}}
 `;
 
 let typstEngineConfigKey = '';
-const DEFAULT_TYPST_RENDER_TIMEOUT_MS = 20000;
+const DEFAULT_TYPST_RENDER_TIMEOUT_MS = 60000;
 
 class TypstRenderTimeoutError extends Error {
   constructor(timeoutMs: number) {
-    super(`Typst 编译超过 ${Math.round(timeoutMs / 1000)} 秒，已切换为源码预览`);
+    super(`Typst 编译超过 ${Math.round(timeoutMs / 1000)} 秒`);
     this.name = 'TypstRenderTimeoutError';
   }
 }
@@ -189,6 +180,16 @@ const isKnownMissingWasmUrl = async (url: string) => {
   } catch {
     return false;
   }
+};
+
+const resolveKnownMissingTypstAsset = async (candidate: TypstEngineAssetCandidate) => {
+  if (await isKnownMissingWasmUrl(candidate.compilerWasmUrl)) {
+    return `Typst compiler WASM missing: ${candidate.compilerWasmUrl}`;
+  }
+  if (await isKnownMissingWasmUrl(candidate.rendererWasmUrl)) {
+    return `Typst renderer WASM missing: ${candidate.rendererWasmUrl}`;
+  }
+  return '';
 };
 
 const isTypstAssetLoadError = (error: unknown) => {
@@ -302,6 +303,26 @@ const formatTypstError = (error: unknown) => {
   }
 
   return String(error);
+};
+
+const formatTypstRuntimeError = (error: unknown) => {
+  const message = formatTypstError(error);
+
+  if (error instanceof TypstRenderTimeoutError) {
+    return [
+      message,
+      '请检查 Typst 源文件复杂度，或通过 options.typst.renderTimeoutMs 调大浏览器端编译超时。'
+    ].join('\n\n');
+  }
+
+  if (isTypstAssetLoadError(error)) {
+    return [
+      message,
+      'Typst 需要本地 compiler / renderer WASM。请运行 file-viewer-copy-assets，或配置 options.typst.compilerWasmUrl / options.typst.rendererWasmUrl，并确认服务器以 application/wasm 返回资源。'
+    ].join('\n\n');
+  }
+
+  return message;
 };
 
 const clampZoom = (value: number) => {
@@ -447,7 +468,6 @@ export default async function renderTypst(
   let state: TypstRenderState = 'loading';
   let pages: TypstRenderedPage[] = [];
   let errorMessage = '';
-  let sourceFallbackMessage = '';
   let zoom = 1;
   let renderToken = 0;
   let disposed = false;
@@ -529,20 +549,6 @@ export default async function renderTypst(
     body.replaceChildren(error);
   };
 
-  const renderSourceFallback = () => {
-    const fallback = createElement(documentRef, 'main', 'typst-source-fallback');
-    fallback.setAttribute('aria-label', 'Typst source preview');
-    const header = createElement(documentRef, 'header');
-    header.append(
-      createElement(documentRef, 'strong', undefined, '已切换为 Typst 源码预览'),
-      createElement(documentRef, 'p', undefined, sourceFallbackMessage || '当前浏览器没有在预期时间内完成 Typst 编译，源码仍可完整查看。')
-    );
-    const pre = createElement(documentRef, 'pre');
-    pre.textContent = source;
-    fallback.append(header, pre);
-    body.replaceChildren(fallback);
-  };
-
   const renderPages = () => {
     pageShells.clear();
     const pagesRoot = createElement(documentRef, 'main', 'typst-pages');
@@ -565,23 +571,17 @@ export default async function renderTypst(
   const syncUi = () => {
     summary.textContent = state === 'ready'
       ? getPageSummary(pages)
-      : state === 'source'
-        ? 'Typst source preview'
-        : 'Typst WASM renderer';
+      : 'Typst WASM renderer';
     status.textContent = state === 'loading'
       ? '正在编译'
       : state === 'error'
         ? '编译失败'
-        : state === 'source'
-          ? '源码预览'
-          : '已渲染';
+        : '已渲染';
 
     if (state === 'loading') {
       renderLoading();
     } else if (state === 'error') {
       renderError();
-    } else if (state === 'source') {
-      renderSourceFallback();
     } else {
       renderPages();
     }
@@ -593,8 +593,11 @@ export default async function renderTypst(
     let lastError: unknown;
 
     for (const candidate of candidates) {
-      if (candidate.preflight && await isKnownMissingWasmUrl(candidate.compilerWasmUrl)) {
-        lastError = new Error(`Typst compiler WASM missing: ${candidate.compilerWasmUrl}`);
+      const missingAsset = candidate.preflight
+        ? await resolveKnownMissingTypstAsset(candidate)
+        : '';
+      if (missingAsset) {
+        lastError = new Error(missingAsset);
         continue;
       }
 
@@ -624,7 +627,6 @@ export default async function renderTypst(
     const token = ++renderToken;
     state = 'loading';
     errorMessage = '';
-    sourceFallbackMessage = '';
     pages = [];
     context?.registerExportAdapter?.(null);
     syncUi();
@@ -645,16 +647,7 @@ export default async function renderTypst(
       if (disposed || token !== renderToken) {
         return;
       }
-      if (error instanceof TypstRenderTimeoutError || isTypstAssetLoadError(error)) {
-        sourceFallbackMessage = error instanceof TypstRenderTimeoutError
-          ? error.message
-          : 'Typst WASM 静态资源不可用，已切换为源码预览。请运行 file-viewer-copy-assets 或配置 options.typst.compilerWasmUrl / options.typst.rendererWasmUrl。';
-        state = 'source';
-        syncUi();
-        context?.onProgressiveRender?.();
-        return;
-      }
-      errorMessage = formatTypstError(error);
+      errorMessage = formatTypstRuntimeError(error);
       state = 'error';
       syncUi();
     }

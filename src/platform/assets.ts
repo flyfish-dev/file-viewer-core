@@ -13,6 +13,7 @@ import type {
 export const DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH = 'vendor/libarchive/worker-bundle.js';
 export const DEFAULT_FILE_VIEWER_ARCHIVE_WASM_PATH = 'vendor/libarchive/libarchive.wasm';
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH = 'vendor/docx/docx.worker.js';
+export const DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH = 'vendor/docx/jszip.min.js';
 export const DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH = 'vendor/xlsx/sheet.worker.js';
 export const DEFAULT_FILE_VIEWER_PDF_WORKER_PATH = 'vendor/pdf/pdf.worker.mjs';
 export const DEFAULT_FILE_VIEWER_PDF_CMAP_PATH = 'vendor/pdf/cmaps/';
@@ -76,6 +77,7 @@ export type FileViewerRendererAssetOptionPath =
   | 'cad.workerUrl'
   | 'cad.dwfWasmUrl'
   | 'data.sqlWasmUrl'
+  | 'docx.workerJsZipUrl'
   | 'docx.workerUrl'
   | 'drawing.viewerScriptUrl'
   | 'pdf.workerUrl'
@@ -255,7 +257,17 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         required: false,
         defaultPath: DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH,
         optionPath: 'docx.workerUrl',
-        description: 'Optional DOCX worker for off-main-thread docx-preview parsing and HTML assembly.',
+        description: 'Optional @file-viewer/docx worker for off-main-thread DOCX ZIP/XML parsing.',
+      },
+      {
+        id: 'docx-worker-jszip',
+        rendererId: 'office-word-openxml',
+        kind: 'script',
+        target: 'public',
+        required: false,
+        defaultPath: DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH,
+        optionPath: 'docx.workerJsZipUrl',
+        description: 'JSZip runtime loaded by the @file-viewer/docx worker for fully offline DOCX parsing.',
       },
     ],
   },
@@ -416,6 +428,17 @@ export const resolveFileViewerDocxWorkerUrl = (
   });
 };
 
+export const resolveFileViewerDocxWorkerJsZipUrl = (
+  options?: Pick<FileViewerDocxOptions, 'workerJsZipUrl'> | null,
+  documentBaseUrl?: string
+) => {
+  return resolveFileViewerAssetUrl(
+    options?.workerJsZipUrl,
+    DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH,
+    { documentBaseUrl }
+  );
+};
+
 export const resolveFileViewerSpreadsheetWorkerUrl = (
   options?: Pick<FileViewerSpreadsheetOptions, 'workerUrl'> | null,
   documentBaseUrl?: string
@@ -486,6 +509,8 @@ const getRendererAssetOptionValue = (
       return options?.cad?.dwfWasmUrl;
     case 'data.sqlWasmUrl':
       return options?.data?.sqlWasmUrl;
+    case 'docx.workerJsZipUrl':
+      return options?.docx?.workerJsZipUrl;
     case 'docx.workerUrl':
       return options?.docx?.workerUrl;
     case 'drawing.viewerScriptUrl':

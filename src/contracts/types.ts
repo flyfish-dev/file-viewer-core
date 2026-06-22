@@ -75,6 +75,7 @@ export interface FileViewerPdfOptions {
   toolbar?: boolean;
   navigation?: boolean;
   defaultNavigationVisible?: boolean;
+  thumbnails?: boolean;
   rotation?: number;
   streaming?: boolean | 'same-origin';
   rangeChunkSize?: number;
@@ -88,9 +89,21 @@ export interface FileViewerPdfOptions {
 export interface FileViewerDocxOptions {
   worker?: boolean;
   workerUrl?: string;
+  workerJsZipUrl?: string;
   progressive?: boolean;
+  /** 默认 false，使用连续流式阅读；设为 true 时才启用 DOCX 页式预览。 */
   visualPagination?: boolean;
   workerTimeout?: number;
+  renderPageBatchSize?: number;
+  renderYieldEveryMs?: number;
+  strictWordCompatibility?: boolean;
+  paginationTolerance?: number;
+  maxDynamicPaginationPasses?: number;
+  awaitLayout?: boolean;
+  preserveComplexFieldResults?: boolean;
+  updatePageReferences?: boolean;
+  hideWebHiddenContent?: boolean;
+  ignoreLastRenderedPageBreak?: boolean;
 }
 
 export interface FileViewerSpreadsheetOptions {

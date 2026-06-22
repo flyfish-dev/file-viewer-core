@@ -8,7 +8,7 @@ Browser execution belongs inside core only when it remains framework-neutral Typ
 
 `@file-viewer/core` is the only shared foundation package. It owns the headless contracts plus browser/renderers layers for the direct `createViewer(container, options)` engine, renderer registry, DOM provider registry, print layout helpers, browser asset resolution, and framework-neutral DOM/Canvas/Worker/WASM rendering contracts. Core source is public; the private Gitea aggregate remains available for the complete workspace, unified release automation, sponsorship, and priority support.
 
-Current migrated browser renderers include media, code, Markdown, images, UMD, geo data, Word DOCX/DOC, Excel/Spreadsheet, OpenDocument/RTF, PDF, OFD, email, EDA, CAD, Typst, PPTX, EPUB, 3D models, drawing files, data assets and archives. PPTX rendering is provided by the independent native `@file-viewer/pptx` engine. Component packages should reuse these handlers instead of carrying framework-specific renderer copies.
+Current migrated browser renderers include media, code, Markdown, images, UMD, geo data, Word DOCX/DOC, Excel/Spreadsheet, OpenDocument/RTF, PDF, OFD, email, EDA, CAD, Typst, PPTX, EPUB, 3D models, drawing files, data assets and archives. DOCX rendering is powered by the self-maintained `@file-viewer/docx` engine, and PPTX rendering is provided by the independent native `@file-viewer/pptx` engine. Component packages should reuse these handlers instead of carrying framework-specific renderer copies.
 
 ```bash
 npm install @file-viewer/core

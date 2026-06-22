@@ -1,5 +1,5 @@
-import type { Options } from 'docx-preview';
-import { renderAsync } from 'docx-preview';
+import type { Options } from '@file-viewer/docx';
+import { renderAsync } from '@file-viewer/docx';
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import { parseHTML } from 'linkedom';
 
@@ -95,7 +95,7 @@ const installDomRuntime = () => {
 
   runtime.window = window;
   runtime.document = window.document;
-  // docx-preview expects browser XML namespace behavior where `<w:body>` has
+  // @file-viewer/docx expects browser XML namespace behavior where `<w:body>` has
   // localName === "body"; linkedom keeps prefixes, so XML parsing uses xmldom.
   runtime.DOMParser = BrowserLikeXmlDomParser as unknown as typeof DOMParser;
   runtime.Node = window.Node;

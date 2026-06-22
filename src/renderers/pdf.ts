@@ -85,6 +85,10 @@ const createStyle = (documentRef: Document) => {
   const style = documentRef.createElement('style');
   style.textContent = `${normalizedPdfViewerStyle}
 .pdf-state[hidden],.pdf-nav-pane[hidden]{display:none!important}
+.pdf-page-button--with-thumbnail{grid-template-columns:52px minmax(0,1fr);min-height:74px}
+.pdf-page-thumb--thumbnail{width:46px;height:60px;overflow:hidden;background:#fff}
+.pdf-page-thumb--thumbnail img{display:block;width:100%;height:100%;object-fit:contain}
+.pdf-page-thumb--thumbnail span{display:inline-flex;align-items:center;justify-content:center;width:100%;height:100%}
 `;
   return style;
 };
@@ -189,6 +193,7 @@ export default async function renderPdf(
   const options = context?.options?.pdf;
   const navigationEnabled = options?.navigation !== false;
   const toolbarVisible = options?.toolbar !== false;
+  const thumbnailsEnabled = options?.thumbnails === true;
   const zoomEmitter = createFileViewerZoomChangeEmitter();
 
   let navVisible = options?.navigation === false ? false : options?.defaultNavigationVisible !== false;
@@ -202,7 +207,9 @@ export default async function renderPdf(
   let currentRotation = normalizeRotation(options?.rotation ?? 0);
   let outlineItems: PdfOutlineItemView[] = [];
   let resizeObserver: ResizeObserver | null = null;
+  let thumbnailObserver: IntersectionObserver | null = null;
   let fitFrame = 0;
+  let pageDimensionFrame = 0;
   let destroyed = false;
   let loadVersion = 0;
   let pdfSearchState = createPdfSearchState();
@@ -212,6 +219,8 @@ export default async function renderPdf(
     resolve: (state: FileViewerSearchState) => void;
     timer: number;
   }> = [];
+  const pdfThumbnails = new Map<number, string>();
+  const pendingPdfThumbnails = new Set<number>();
 
   const pdfContext = {
     viewer: null as PDFViewer | null,
@@ -326,12 +335,21 @@ export default async function renderPdf(
     navList.className = navMode === 'pages' ? 'pdf-page-list' : 'pdf-outline-list';
 
     if (navMode === 'pages') {
+      thumbnailObserver?.disconnect();
       for (let page = 1; page <= pageCount; page += 1) {
         const button = createElement(documentRef, 'button', 'pdf-page-button') as HTMLButtonElement;
         button.type = 'button';
         button.classList.toggle('pdf-page-button--active', page === currentPage);
+        button.classList.toggle('pdf-page-button--with-thumbnail', thumbnailsEnabled);
+        const thumb = createElement(documentRef, 'span', 'pdf-page-thumb');
+        if (thumbnailsEnabled) {
+          thumb.classList.add('pdf-page-thumb--thumbnail');
+          queuePdfThumbnail(page, thumb);
+        } else {
+          thumb.textContent = String(page);
+        }
         button.append(
-          createElement(documentRef, 'span', 'pdf-page-thumb', String(page)),
+          thumb,
           createElement(documentRef, 'span', 'pdf-page-label', `第 ${page} 页`)
         );
         button.addEventListener('click', () => goToPage(page));
@@ -363,6 +381,109 @@ export default async function renderPdf(
     }
   };
 
+  const paintPdfThumbnail = (pageNumber: number, thumb: HTMLElement) => {
+    const imageUrl = pdfThumbnails.get(pageNumber);
+    thumb.dataset.pdfThumbnailPage = String(pageNumber);
+    if (!imageUrl) {
+      thumb.replaceChildren(createElement(documentRef, 'span', undefined, String(pageNumber)));
+      return false;
+    }
+
+    const image = documentRef.createElement('img');
+    image.src = imageUrl;
+    image.alt = `第 ${pageNumber} 页缩略图`;
+    image.loading = 'lazy';
+    thumb.replaceChildren(image);
+    return true;
+  };
+
+  const renderPdfThumbnail = async (pageNumber: number) => {
+    const pdfDocument = pdfContext.document;
+    if (!pdfDocument || pdfThumbnails.has(pageNumber) || pendingPdfThumbnails.has(pageNumber)) {
+      return;
+    }
+
+    pendingPdfThumbnails.add(pageNumber);
+    try {
+      const page = await pdfDocument.getPage(pageNumber);
+      if (destroyed || pdfContext.document !== pdfDocument) {
+        return;
+      }
+
+      const baseViewport = page.getViewport({
+        scale: PixelsPerInch.PDF_TO_CSS_UNITS,
+        rotation: currentRotation,
+      });
+      const deviceScale = Math.min(2, Math.max(1, targetWindow.devicePixelRatio || 1));
+      const thumbnailWidth = 46;
+      const ratio = Math.min(1, thumbnailWidth / Math.max(baseViewport.width, 1));
+      const renderViewport = page.getViewport({
+        scale: PixelsPerInch.PDF_TO_CSS_UNITS * ratio * deviceScale,
+        rotation: currentRotation,
+      });
+      const canvas = documentRef.createElement('canvas');
+      const canvasContext = canvas.getContext('2d');
+      if (!canvasContext) {
+        return;
+      }
+
+      canvas.width = Math.max(1, Math.ceil(renderViewport.width));
+      canvas.height = Math.max(1, Math.ceil(renderViewport.height));
+      await page.render({ canvas, canvasContext, viewport: renderViewport }).promise;
+      if (destroyed || pdfContext.document !== pdfDocument) {
+        return;
+      }
+
+      pdfThumbnails.set(pageNumber, canvas.toDataURL('image/png'));
+      canvas.width = 0;
+      canvas.height = 0;
+      (page as { cleanup?: () => void }).cleanup?.();
+      navList
+        .querySelectorAll<HTMLElement>(`.pdf-page-thumb--thumbnail[data-pdf-thumbnail-page="${pageNumber}"]`)
+        .forEach(thumb => paintPdfThumbnail(pageNumber, thumb));
+    } catch (error) {
+      console.warn('[file-viewer] PDF 缩略图渲染失败。', error);
+    } finally {
+      pendingPdfThumbnails.delete(pageNumber);
+    }
+  };
+
+  const ensureThumbnailObserver = () => {
+    if (!thumbnailsEnabled || thumbnailObserver || typeof targetWindow.IntersectionObserver !== 'function') {
+      return;
+    }
+
+    thumbnailObserver = new targetWindow.IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) {
+          return;
+        }
+        const targetElement = entry.target as HTMLElement;
+        const pageNumber = Number(targetElement.dataset.pdfThumbnailPage || '0');
+        thumbnailObserver?.unobserve(targetElement);
+        if (pageNumber > 0) {
+          void renderPdfThumbnail(pageNumber);
+        }
+      });
+    }, {
+      root: navList,
+      rootMargin: '96px 0px',
+    });
+  };
+
+  const queuePdfThumbnail = (pageNumber: number, thumb: HTMLElement) => {
+    if (paintPdfThumbnail(pageNumber, thumb)) {
+      return;
+    }
+
+    ensureThumbnailObserver();
+    if (thumbnailObserver) {
+      thumbnailObserver.observe(thumb);
+      return;
+    }
+    void renderPdfThumbnail(pageNumber);
+  };
+
   const syncUi = () => {
     root.classList.toggle('pdf-shell--nav-hidden', !navigationEnabled || !navVisible);
     root.classList.toggle('pdf-shell--toolbar-hidden', !toolbarVisible);
@@ -387,6 +508,39 @@ export default async function renderPdf(
     stateNode.classList.toggle('pdf-state--error', loadStatus === 'error');
     stateNode.textContent = loadStatus === 'error' ? errorMessage : '正在加载 PDF...';
     renderNavList();
+  };
+
+  const writeLegacyCompatiblePageDimensions = () => {
+    const pdfViewer = pdfContext.viewer;
+    if (!pdfViewer) {
+      return;
+    }
+
+    const totalPages = pageCount || (pdfViewer as { pagesCount?: number }).pagesCount || 0;
+    for (let index = 0; index < totalPages; index += 1) {
+      const pageView = pdfViewer.getPageView(index) as {
+        div?: HTMLElement;
+        viewport?: { width?: number; height?: number };
+      } | null;
+      const pageElement = pageView?.div ||
+        pdfViewerRoot.querySelector<HTMLElement>(`.page[data-page-number="${index + 1}"]`);
+      const width = pageView?.viewport?.width;
+      const height = pageView?.viewport?.height;
+      if (!pageElement || !Number.isFinite(width) || !Number.isFinite(height)) {
+        continue;
+      }
+
+      pageElement.style.setProperty('width', `${Math.max(1, Math.round(width || 0))}px`, 'important');
+      pageElement.style.setProperty('height', `${Math.max(1, Math.round(height || 0))}px`, 'important');
+    }
+  };
+
+  const scheduleLegacyPageDimensionPatch = () => {
+    targetWindow.cancelAnimationFrame(pageDimensionFrame);
+    pageDimensionFrame = targetWindow.requestAnimationFrame(() => {
+      writeLegacyCompatiblePageDimensions();
+      targetWindow.requestAnimationFrame(writeLegacyCompatiblePageDimensions);
+    });
   };
 
   const createPdfWorker = () => {
@@ -571,6 +725,7 @@ export default async function renderPdf(
     const normalizedScale = clampScale(scale);
     pdfContext.viewer.currentScale = normalizedScale;
     currentScale = normalizedScale;
+    scheduleLegacyPageDimensionPatch();
     zoomEmitter.emit();
     syncUi();
   };
@@ -631,6 +786,8 @@ export default async function renderPdf(
   const applyRotation = (rotation: number) => {
     const normalized = normalizeRotation(rotation);
     currentRotation = normalized;
+    pdfThumbnails.clear();
+    pendingPdfThumbnails.clear();
     if (!pdfContext.viewer) {
       syncUi();
       return;
@@ -642,6 +799,7 @@ export default async function renderPdf(
         return;
       }
       pdfContext.viewer?.update();
+      scheduleLegacyPageDimensionPatch();
       syncUi();
     });
   };
@@ -821,6 +979,9 @@ export default async function renderPdf(
     errorMessage = '';
     pdfContext.document = null;
     outlineItems = [];
+    pdfThumbnails.clear();
+    pendingPdfThumbnails.clear();
+    thumbnailObserver?.disconnect();
     context?.registerExportAdapter?.(null);
     syncUi();
     let resource: PdfResource | null = null;
@@ -857,6 +1018,7 @@ export default async function renderPdf(
       eventBus.on('pagesinit', () => {
         applyRotation(currentRotation);
         fitToWidth();
+        scheduleLegacyPageDimensionPatch();
         loadStatus = 'ready';
         syncUi();
         context?.onProgressiveRender?.();
@@ -870,9 +1032,11 @@ export default async function renderPdf(
       });
       eventBus.on('scalechanging', ({ scale }: { scale: number }) => {
         currentScale = clampScale(scale);
+        scheduleLegacyPageDimensionPatch();
         zoomEmitter.emit();
         syncUi();
       });
+      eventBus.on('pagerendered', scheduleLegacyPageDimensionPatch);
 
       if (!context?.streamUrl && !buffer.byteLength) {
         throw new Error('PDF 缺少可读取的数据源');
@@ -999,6 +1163,9 @@ export default async function renderPdf(
       destroyed = true;
       loadVersion += 1;
       targetWindow.cancelAnimationFrame(fitFrame);
+      targetWindow.cancelAnimationFrame(pageDimensionFrame);
+      thumbnailObserver?.disconnect();
+      thumbnailObserver = null;
       resizeObserver?.disconnect();
       resizeObserver = null;
       unregisterFileViewerSearchProvider(root);

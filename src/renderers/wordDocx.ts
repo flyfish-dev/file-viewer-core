@@ -1,6 +1,9 @@
-import type { Options, renderAsync } from 'docx-preview'
+import type { DocxProgressEvent, Options, renderAsync } from '@file-viewer/docx'
 import type JSZip from 'jszip'
-import { resolveFileViewerDocxWorkerUrl } from '../platform/assets'
+import {
+  resolveFileViewerDocxWorkerJsZipUrl,
+  resolveFileViewerDocxWorkerUrl,
+} from '../platform/assets'
 import {
   applyPrintPageSize,
   buildPrintPageStyle,
@@ -27,7 +30,7 @@ const DOCX_DEFAULT_PAGE_SIZE: PrintPageSize = {
 }
 
 const DOCX_PROGRESSIVE_BATCH_SIZE = 2
-const DOCX_WORKER_TIMEOUT = 15000
+const DOCX_WORKER_TIMEOUT = 120000
 const DOCX_MIN_SCALE = 0.24
 const DOCX_MAX_SCALE = 3
 const DOCX_ZOOM_STEP = 0.15
@@ -72,25 +75,12 @@ interface DocxChartFallback {
   paragraphIndex?: number;
 }
 
-type DocxWorkerResponse = {
-  id: number;
-  ok: true;
-  html: string;
-} | {
-  id: number;
-  ok: false;
-  message: string;
-  stack?: string;
-}
-
-let docxWorkerRequestId = 0
-
 const loadLibrary = (() => {
   const loader = {
     module: null as null | Promise<{defaultOptions: Options, renderAsync: typeof renderAsync}>,
     async load() {
       if (!this.module) {
-        this.module = import('docx-preview');
+        this.module = import('@file-viewer/docx');
       }
       return this.module;
     }
@@ -100,11 +90,53 @@ const loadLibrary = (() => {
   }
 })()
 
-const createDocxOptions = (experimental = true): Partial<Options> => ({
-  // Word 会写入 autoSpaceDN/autoSpaceDE 等兼容标签；生产预览保持静默，避免 docx-preview 调试告警刷屏。
-  debug: false,
-  experimental
-})
+const createDocxOptions = (
+  target: HTMLDivElement,
+  context: FileRenderContext | undefined,
+  notifyProgressiveRender: () => void
+): Partial<Options> => {
+  const docxOptions = context?.options?.docx
+  const documentBaseUrl = target.ownerDocument.URL || undefined
+  const useWorker = docxOptions?.worker !== false
+  const usePagedLayout = docxOptions?.visualPagination === true
+  const progress = (event: DocxProgressEvent) => {
+    if (event.phase === 'render' || event.phase === 'layout' || event.phase === 'done') {
+      notifyProgressiveRender()
+    }
+  }
+
+  return {
+    // Word 会写入 autoSpaceDN/autoSpaceDE 等兼容标签；生产预览保持静默，避免 DOCX 调试告警刷屏。
+    debug: false,
+    experimental: false,
+    useWorker,
+    workerUrl: useWorker
+      ? resolveFileViewerDocxWorkerUrl(docxOptions, documentBaseUrl)
+      : undefined,
+    workerJsZipUrl: useWorker
+      ? resolveFileViewerDocxWorkerJsZipUrl(docxOptions, documentBaseUrl)
+      : undefined,
+    workerFallback: true,
+    workerTimeout: docxOptions?.workerTimeout ?? DOCX_WORKER_TIMEOUT,
+    renderPageBatchSize:
+      docxOptions?.renderPageBatchSize ??
+      (docxOptions?.progressive === false ? Number.MAX_SAFE_INTEGER : DOCX_PROGRESSIVE_BATCH_SIZE),
+    renderYieldEveryMs: docxOptions?.renderYieldEveryMs ?? 16,
+    strictWordCompatibility: docxOptions?.strictWordCompatibility ?? true,
+    paginationTolerance: docxOptions?.paginationTolerance ?? 2,
+    breakPages: usePagedLayout,
+    maxDynamicPaginationPasses:
+      usePagedLayout
+        ? docxOptions?.maxDynamicPaginationPasses ?? 1000
+        : 0,
+    awaitLayout: docxOptions?.awaitLayout ?? usePagedLayout,
+    preserveComplexFieldResults: docxOptions?.preserveComplexFieldResults ?? true,
+    updatePageReferences: docxOptions?.updatePageReferences ?? false,
+    hideWebHiddenContent: docxOptions?.hideWebHiddenContent ?? false,
+    ignoreLastRenderedPageBreak: docxOptions?.ignoreLastRenderedPageBreak ?? !usePagedLayout,
+    progress
+  }
+}
 
 const getTargetWindow = (target: HTMLDivElement) => {
   return target.ownerDocument.defaultView
@@ -115,204 +147,8 @@ const isTargetHTMLElement = (value: unknown, target: HTMLDivElement): value is H
   return HTMLElementCtor ? value instanceof HTMLElementCtor : value instanceof HTMLElement
 }
 
-const shouldUseDocxWorker = (target: HTMLDivElement, context?: FileRenderContext) => {
-  const view = getTargetWindow(target)
-  return context?.options?.docx?.worker === true && typeof view?.Worker === 'function'
-}
-
-const shouldMountDocxProgressively = (context?: FileRenderContext) => {
-  return context?.options?.docx?.progressive === true
-}
-
 const shouldPaginateOversizedDocxSections = (context?: FileRenderContext) => {
   return context?.options?.docx?.visualPagination === true
-}
-
-const waitDocxMountFrame = (target: HTMLDivElement) => {
-  return new Promise<void>(resolve => {
-    const view = getTargetWindow(target)
-    if (!view || typeof view.requestAnimationFrame !== 'function') {
-      globalThis.setTimeout(resolve, 0)
-      return
-    }
-    view.requestAnimationFrame(() => resolve())
-  })
-}
-
-async function mountDocxPreviewHtml(
-  html: string,
-  target: HTMLDivElement,
-  context?: FileRenderContext
-) {
-  if (!shouldMountDocxProgressively(context)) {
-    target.innerHTML = html
-    context?.onProgressiveRender?.()
-    return
-  }
-
-  const template = target.ownerDocument.createElement('template')
-  template.innerHTML = html
-  const sourceWrapper = template.content.querySelector<HTMLElement>('.docx-wrapper')
-
-  if (!sourceWrapper) {
-    target.innerHTML = html
-    context?.onProgressiveRender?.()
-    return
-  }
-
-  const pages = Array.from(sourceWrapper.children)
-  const liveWrapper = sourceWrapper.cloneNode(false) as HTMLElement
-  let hasNotifiedFirstPaint = false
-
-  target.innerHTML = ''
-  Array.from(template.content.childNodes).forEach(node => {
-    if (node === sourceWrapper) {
-      target.appendChild(liveWrapper)
-      return
-    }
-    target.appendChild(node)
-  })
-
-  for (let index = 0; index < pages.length; index += DOCX_PROGRESSIVE_BATCH_SIZE) {
-    pages.slice(index, index + DOCX_PROGRESSIVE_BATCH_SIZE).forEach(page => {
-      liveWrapper.appendChild(page)
-    })
-
-    if (!hasNotifiedFirstPaint) {
-      hasNotifiedFirstPaint = true
-      context?.onProgressiveRender?.()
-    }
-
-    if (index + DOCX_PROGRESSIVE_BATCH_SIZE < pages.length) {
-      await waitDocxMountFrame(target)
-    }
-  }
-}
-
-function createDocxWorker(target: HTMLDivElement, context?: FileRenderContext) {
-  const view = getTargetWindow(target)
-  if (!view?.Worker) {
-    return null
-  }
-
-  const workerUrl = resolveFileViewerDocxWorkerUrl(
-    context?.options?.docx,
-    target.ownerDocument.URL || undefined
-  )
-
-  try {
-    return new view.Worker(workerUrl, { type: 'module' })
-  } catch (moduleWorkerError) {
-    try {
-      return new view.Worker(workerUrl)
-    } catch (classicWorkerError) {
-      console.warn(
-        '[file-viewer] DOCX Worker 无法创建，回退到 docx-preview 主线程渲染。',
-        classicWorkerError || moduleWorkerError
-      )
-      return null
-    }
-  }
-}
-
-async function renderDocxWithWorker(
-  buffer: ArrayBuffer,
-  target: HTMLDivElement,
-  options: Partial<Options>,
-  context?: FileRenderContext
-) {
-  if (!shouldUseDocxWorker(target, context)) {
-    return false
-  }
-
-  const worker = createDocxWorker(target, context)
-  if (!worker) {
-    return false
-  }
-
-  const view = getTargetWindow(target)
-  const id = ++docxWorkerRequestId
-  const timeout = context?.options?.docx?.workerTimeout ?? DOCX_WORKER_TIMEOUT
-
-  return await new Promise<boolean>(resolve => {
-    let settled = false
-    let timeoutId: number | undefined
-
-    const cleanup = () => {
-      if (timeoutId !== undefined) {
-        view?.clearTimeout(timeoutId)
-      }
-      worker.removeEventListener('message', handleMessage)
-      worker.removeEventListener('error', handleError)
-      worker.removeEventListener('messageerror', handleMessageError)
-      worker.terminate()
-    }
-
-    const fallback = (reason: unknown) => {
-      if (settled) {
-        return
-      }
-      settled = true
-      cleanup()
-      console.warn('[file-viewer] DOCX Worker 渲染失败，回退到 docx-preview 主线程渲染。', reason)
-      resolve(false)
-    }
-
-    const handleMessage = (event: MessageEvent<DocxWorkerResponse>) => {
-      if (event.data?.id !== id) {
-        return
-      }
-
-      if (settled) {
-        return
-      }
-      settled = true
-      cleanup()
-      if (event.data.ok) {
-        void mountDocxPreviewHtml(event.data.html, target, context)
-          .then(() => resolve(true))
-          .catch(reason => {
-            console.warn('[file-viewer] DOCX 渐进挂载失败，回退到 docx-preview 主线程渲染。', reason)
-            resolve(false)
-          })
-        return
-      }
-
-      console.warn('[file-viewer] DOCX Worker 渲染失败，回退到 docx-preview 主线程渲染。', event.data.message)
-      resolve(false)
-    }
-
-    const handleError = (event: ErrorEvent) => {
-      fallback(event.error || event.message)
-    }
-
-    const handleMessageError = () => {
-      fallback('DOCX Worker 消息无法结构化传输')
-    }
-
-    worker.addEventListener('message', handleMessage)
-    worker.addEventListener('error', handleError)
-    worker.addEventListener('messageerror', handleMessageError)
-
-    if (Number.isFinite(timeout) && timeout > 0) {
-      timeoutId = view?.setTimeout(() => {
-        fallback(`DOCX Worker 超过 ${timeout}ms 未返回结果`)
-      }, timeout)
-    }
-
-    const workerBuffer = buffer.slice(0)
-    // Worker 内输出 HTML，图片和字体使用 data URL，避免 Worker 生命周期结束后 Blob URL 失效。
-    worker.postMessage({
-      id,
-      buffer: workerBuffer,
-      options: {
-        ...options,
-        // docx-preview 的 experimental tab stop 需要真实布局 API，Worker 内无法可靠计算。
-        experimental: false,
-        useBase64URL: true
-      }
-    }, [workerBuffer])
-  })
 }
 
 const DOCX_RESPONSIVE_CSS = `
@@ -336,7 +172,15 @@ const DOCX_RESPONSIVE_CSS = `
   margin: 0 auto 24px;
   overflow: visible;
 }
-.docx-fit-viewer .docx-page-frame > section.docx {
+.docx-fit-viewer .docx-flow-frame {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  margin: 0 auto 28px;
+  overflow: visible;
+}
+.docx-fit-viewer .docx-page-frame > section.docx,
+.docx-fit-viewer .docx-flow-frame > section.docx {
   position: absolute;
   top: 0;
   left: 50%;
@@ -348,7 +192,13 @@ const DOCX_RESPONSIVE_CSS = `
   overflow: hidden;
   transform-origin: top center;
 }
-.docx-fit-viewer .docx-page-frame > section.docx > article {
+.docx-fit-viewer .docx-flow-frame > section.docx {
+  height: auto !important;
+  min-height: 0 !important;
+  overflow: visible !important;
+}
+.docx-fit-viewer .docx-page-frame > section.docx > article,
+.docx-fit-viewer .docx-flow-frame > section.docx > article {
   position: relative;
   z-index: 1;
 }
@@ -978,7 +828,7 @@ async function enhanceDocxFallbacks(buffer: ArrayBuffer, target: HTMLDivElement)
       injectDocxChartFallbacks(target, chartFallbacks)
     }
   } catch (error) {
-    console.warn('[file-viewer] DOCX 兼容增强解析失败，已保留 docx-preview 原始渲染结果。', error)
+    console.warn('[file-viewer] DOCX 兼容增强解析失败，已保留 @file-viewer/docx 原始渲染结果。', error)
   }
 }
 
@@ -1037,7 +887,7 @@ function paginateOversizedSections(target: HTMLDivElement) {
       return
     }
 
-    // docx-preview 只能按已有分页符拆页；没有分页符的长文档需要在预览层补一层视觉分页。
+    // 新 DOCX 引擎会优先使用 Word 保存的分页；这里保留预览层兜底分页，覆盖缺少分页标记的旧文件。
     let current = clonePageShell(child, article, pageHeight)
     child.before(current.page)
 
@@ -1058,7 +908,7 @@ function paginateOversizedSections(target: HTMLDivElement) {
   })
 }
 
-function wrapDocxPages(target: HTMLDivElement) {
+function wrapDocxSections(target: HTMLDivElement, pagedLayout: boolean) {
   const wrapper = target.querySelector('.docx-wrapper')
   if (!wrapper) {
     return []
@@ -1070,7 +920,7 @@ function wrapDocxPages(target: HTMLDivElement) {
     }
 
     const frame = target.ownerDocument.createElement('div')
-    frame.className = 'docx-page-frame'
+    frame.className = pagedLayout ? 'docx-page-frame' : 'docx-flow-frame'
     child.before(frame)
     frame.appendChild(child)
     return [frame]
@@ -1080,10 +930,11 @@ function wrapDocxPages(target: HTMLDivElement) {
 function makeDocxResponsive(target: HTMLDivElement, context?: FileRenderContext) {
   target.classList.add('docx-fit-viewer')
   const style = installResponsiveStyle(target)
-  if (shouldPaginateOversizedDocxSections(context)) {
+  const pagedLayout = shouldPaginateOversizedDocxSections(context)
+  if (pagedLayout) {
     paginateOversizedSections(target)
   }
-  const frames = wrapDocxPages(target)
+  const frames = wrapDocxSections(target, pagedLayout)
   const view = getTargetWindow(target)
   const ResizeObserverCtor = view?.ResizeObserver
   let resizeFrame = 0
@@ -1113,8 +964,10 @@ function makeDocxResponsive(target: HTMLDivElement, context?: FileRenderContext)
         page.style.transform = 'translateX(-50%)'
 
         const pageWidth = page.offsetWidth
-        const pageHeight = page.offsetHeight
-        if (!pageWidth || !pageHeight) {
+        const contentHeight = pagedLayout
+          ? page.offsetHeight
+          : Math.max(page.scrollHeight, page.offsetHeight)
+        if (!pageWidth || !contentHeight) {
           return
         }
         const availableWidth = Math.max(target.clientWidth - 28, 120)
@@ -1126,7 +979,7 @@ function makeDocxResponsive(target: HTMLDivElement, context?: FileRenderContext)
         page.style.transform = `translateX(-50%) scale(${scale})`
         frame.style.width = `${Math.ceil(Math.max(pageWidth * scale, target.clientWidth - 28, 120))}px`
         frame.style.maxWidth = 'none'
-        frame.style.height = `${Math.ceil(pageHeight * scale)}px`
+        frame.style.height = `${Math.ceil(contentHeight * scale)}px`
       })
       currentScale = firstScale
       zoomEmitter.emit()
@@ -1184,16 +1037,33 @@ function getDocxPageElement(frame: HTMLElement) {
   return HTMLElementCtor && page instanceof HTMLElementCtor ? page : null
 }
 
+function isDocxFlowFrame(frame: HTMLElement | undefined) {
+  return !!frame?.classList.contains('docx-flow-frame')
+}
+
 function getDocxFramePrintSize(frame: HTMLElement | undefined) {
   const page = frame ? getDocxPageElement(frame) : null
-  return page ? getElementPrintPageSize(page, DOCX_DEFAULT_PAGE_SIZE) : DOCX_DEFAULT_PAGE_SIZE
+  if (!page) {
+    return DOCX_DEFAULT_PAGE_SIZE
+  }
+
+  const size = getElementPrintPageSize(page, DOCX_DEFAULT_PAGE_SIZE)
+  if (!isDocxFlowFrame(frame)) {
+    return size
+  }
+
+  return {
+    width: size.width,
+    height: Math.max(page.scrollHeight || 0, page.offsetHeight || 0, DOCX_DEFAULT_PAGE_SIZE.height)
+  }
 }
 
 function normalizeDocxPageForPrint(frame: HTMLElement, pageSize: PrintPageSize) {
+  const flowLayout = isDocxFlowFrame(frame)
   const pageWidth = formatCssPixels(pageSize.width)
   const pageHeight = formatCssPixels(pageSize.height)
 
-  applyPrintPageSize(frame, pageSize)
+  applyPrintPageSize(frame, pageSize, { heightMode: flowLayout ? 'min' : 'fixed' })
   frame.style.margin = '0 auto 18px'
 
   const page = getDocxPageElement(frame)
@@ -1206,28 +1076,34 @@ function normalizeDocxPageForPrint(frame: HTMLElement, pageSize: PrintPageSize) 
   page.style.left = 'auto'
   page.style.width = pageWidth
   page.style.maxWidth = 'none'
-  page.style.minHeight = pageHeight
-  page.style.height = pageHeight
+  page.style.minHeight = flowLayout ? '0' : pageHeight
+  page.style.height = flowLayout ? 'auto' : pageHeight
   page.style.margin = '0 auto'
   page.style.transform = 'none'
   page.style.transformOrigin = 'top left'
-  page.style.overflow = 'hidden'
+  page.style.overflow = flowLayout ? 'visible' : 'hidden'
   page.style.boxShadow = 'none'
 }
 
 function buildDocxPrintStyle(target: HTMLDivElement) {
-  const firstFrame = target.querySelector<HTMLElement>('.docx-page-frame')
+  const firstFrame = target.querySelector<HTMLElement>('.docx-page-frame, .docx-flow-frame')
   const pageSize = getDocxFramePrintSize(firstFrame || undefined)
+  const selector = firstFrame?.classList.contains('docx-flow-frame')
+    ? '.viewer-export-content .docx-flow-frame'
+    : '.viewer-export-content .docx-page-frame'
 
   return buildPrintPageStyle({
-    selector: '.viewer-export-content .docx-page-frame',
+    selector,
     width: pageSize.width,
-    height: pageSize.height
+    height: firstFrame?.classList.contains('docx-flow-frame')
+      ? DOCX_DEFAULT_PAGE_SIZE.height
+      : pageSize.height,
+    heightMode: firstFrame?.classList.contains('docx-flow-frame') ? 'min' : 'fixed'
   })
 }
 
 function prepareDocxCloneForExport(target: HTMLDivElement) {
-  const liveFrames = Array.from(target.querySelectorAll<HTMLElement>('.docx-page-frame'))
+  const liveFrames = Array.from(target.querySelectorAll<HTMLElement>('.docx-page-frame, .docx-flow-frame'))
   const clone = target.cloneNode(true) as HTMLElement
   const printDocument = target.ownerDocument.createElement('div')
   printDocument.className = 'docx-print-document'
@@ -1236,7 +1112,7 @@ function prepareDocxCloneForExport(target: HTMLDivElement) {
     .map(style => style.outerHTML)
     .join('')
 
-  clone.querySelectorAll<HTMLElement>('.docx-page-frame').forEach((frame, index) => {
+  clone.querySelectorAll<HTMLElement>('.docx-page-frame, .docx-flow-frame').forEach((frame, index) => {
     normalizeDocxPageForPrint(frame, getDocxFramePrintSize(liveFrames[index]))
     printDocument.appendChild(frame.cloneNode(true))
   })
@@ -1248,17 +1124,23 @@ function prepareDocxCloneForExport(target: HTMLDivElement) {
  * 渲染docx文件
  */
 export default async function(buffer: ArrayBuffer, target: HTMLDivElement, context?: FileRenderContext): Promise<AppWrapper> {
-  const docxOptions = createDocxOptions()
-  const workerRendered = await renderDocxWithWorker(buffer, target, docxOptions, context)
-  target.dataset.docxWorker = workerRendered ? 'true' : 'false'
-
-  if (!workerRendered) {
-    const { defaultOptions, renderAsync } = await loadLibrary()
-    await renderAsync(buffer, target, undefined, {
-      ...defaultOptions,
-      ...docxOptions
-    })
+  let hasNotifiedProgressiveRender = false
+  const notifyProgressiveRender = () => {
+    if (hasNotifiedProgressiveRender) {
+      return
+    }
+    hasNotifiedProgressiveRender = true
+    context?.onProgressiveRender?.()
   }
+  const docxOptions = createDocxOptions(target, context, notifyProgressiveRender)
+  const { defaultOptions, renderAsync } = await loadLibrary()
+
+  target.dataset.docxWorker = docxOptions.useWorker ? 'self' : 'false'
+  await renderAsync(buffer, target, undefined, {
+    ...defaultOptions,
+    ...docxOptions
+  })
+  notifyProgressiveRender()
 
   await enhanceDocxFallbacks(buffer, target)
   const disposeResponsive = makeDocxResponsive(target, context)
