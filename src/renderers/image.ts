@@ -65,20 +65,12 @@ const readBlobDataUrl = async (blob: Blob): Promise<string> => {
   });
 };
 
-const renderHeic = async (buffer: ArrayBuffer, type?: string) => {
-  const { default: heic2any } = await import('heic2any');
-  const result = await heic2any({
-    blob: new Blob([buffer], { type: getImageBlobType(type) }),
-    toType: 'image/png',
-  });
-  const blob = Array.isArray(result) ? result[0] : result;
-  return readBlobDataUrl(blob);
-};
-
 const resolveImageUrl = async (buffer: ArrayBuffer, type?: string) => {
   const normalizedType = (type || '').trim().toLowerCase();
   if (normalizedType === 'heic' || normalizedType === 'heif') {
-    return renderHeic(buffer, normalizedType);
+    throw new Error(
+      'HEIC/HEIF image conversion has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-image, or use @file-viewer/preset-all.'
+    );
   }
   return readBlobDataUrl(new Blob([buffer], { type: getImageBlobType(normalizedType) }));
 };

@@ -61,7 +61,8 @@ export const ADAPTER_PRINT_REQUIRED_EXTENSIONS = [
  */
 export const DOM_PRINTABLE_EXTENSIONS = [
   'pptx', 'pptm', 'potx', 'potm', 'ppsx', 'ppsm', 'ofd', 'dxf', 'dwg', 'dwf', 'dwfx', 'xps',
-  'excalidraw', 'drawio', 'dio', 'umd', 'md', 'markdown', 'olb', 'dra',
+  'excalidraw', 'drawio', 'dio', 'mermaid', 'mmd', 'plantuml', 'puml', 'umd', 'md', 'markdown',
+  'olb', 'dra',
   ...TEXT_EXTENSIONS,
   ...IMAGE_EXTENSIONS,
 ] as const;

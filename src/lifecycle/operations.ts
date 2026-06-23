@@ -25,6 +25,7 @@ import type {
   FileViewerOptions,
   FileViewerSearchState,
   FileViewerSourceKind,
+  FileViewerToolbarActionMap,
   FileViewerToolbarOptions,
   FileViewerToolbarPosition,
   FileViewerPublicApi,
@@ -51,6 +52,14 @@ export const FILE_VIEWER_OPERATION_LABELS = {
 export const FILE_VIEWER_BEFORE_OPERATION_ERROR_PREFIX = '操作前置校验失败';
 
 export const FILE_VIEWER_LIFECYCLE_HOOK_ERROR_MESSAGE_PREFIX = 'FileViewer';
+
+const FILE_VIEWER_ZOOM_OPERATIONS = ['zoom-in', 'zoom-out', 'zoom-reset'] as const satisfies FileViewerOperationType[];
+
+const FILE_VIEWER_ZOOM_BUTTON_OPERATIONS = {
+  canZoomIn: 'zoom-in',
+  canZoomOut: 'zoom-out',
+  canReset: 'zoom-reset',
+} as const satisfies Record<FileViewerZoomButtonAction, typeof FILE_VIEWER_ZOOM_OPERATIONS[number]>;
 
 export interface FileViewerLifecycleComponentEmit {
   (event: 'load-start', context: FileViewerLifecycleContext): void;
@@ -651,6 +660,62 @@ export const getFileViewerBeforeOperationHooks = (
   return [options?.beforeOperation, toolbar.beforeOperation, specificHook];
 };
 
+const isToolbarActionMapAllowed = (
+  map: FileViewerToolbarActionMap | undefined,
+  operation: FileViewerOperationType
+) => map?.[operation] !== false;
+
+export const isFileViewerToolbarOperationPermitted = (
+  toolbar: FileViewerOptions['toolbar'] | undefined,
+  operation: FileViewerOperationType
+) => {
+  if (!toolbar || typeof toolbar !== 'object') {
+    return true;
+  }
+  return isToolbarActionMapAllowed(toolbar.permissions, operation);
+};
+
+const isFileViewerToolbarOperationVisible = (
+  toolbar: FileViewerToolbarOptions,
+  operation: FileViewerOperationType
+) => isToolbarActionMapAllowed(toolbar.items, operation) &&
+  isToolbarActionMapAllowed(toolbar.permissions, operation);
+
+const hasAnyToolbarZoomOperation = (
+  toolbar: FileViewerToolbarOptions
+) => FILE_VIEWER_ZOOM_OPERATIONS.some(operation => isFileViewerToolbarOperationVisible(toolbar, operation));
+
+const applyToolbarPermissionsToAvailability = (
+  availability: FileViewerOperationAvailability,
+  toolbar: FileViewerOptions['toolbar'] | undefined
+): FileViewerOperationAvailability => {
+  if (!toolbar || typeof toolbar !== 'object' || !toolbar.permissions) {
+    return availability;
+  }
+
+  const next = cloneFileViewerOperationAvailability(availability);
+  if (!isFileViewerToolbarOperationPermitted(toolbar, 'download')) {
+    next.download = false;
+  }
+  if (!isFileViewerToolbarOperationPermitted(toolbar, 'print')) {
+    next.print = false;
+  }
+  if (!isFileViewerToolbarOperationPermitted(toolbar, 'export-html')) {
+    next.exportHtml = false;
+  }
+  if (!isFileViewerToolbarOperationPermitted(toolbar, 'zoom-in')) {
+    next.zoomIn = false;
+  }
+  if (!isFileViewerToolbarOperationPermitted(toolbar, 'zoom-out')) {
+    next.zoomOut = false;
+  }
+  if (!isFileViewerToolbarOperationPermitted(toolbar, 'zoom-reset')) {
+    next.zoomReset = false;
+  }
+  next.zoom = next.zoom && (next.zoomIn || next.zoomOut || next.zoomReset);
+  return next;
+};
+
 export const runFileViewerBeforeOperation = async <
   Context extends FileViewerOperationContext,
 >({
@@ -663,6 +728,11 @@ export const runFileViewerBeforeOperation = async <
   onBefore?.(context);
 
   try {
+    if (!isFileViewerToolbarOperationPermitted(options?.toolbar, context.operation)) {
+      onCancel?.(context);
+      return false;
+    }
+
     for (const hook of getFileViewerBeforeOperationHooks(options, context.operation)) {
       if (!hook) {
         continue;
@@ -938,10 +1008,17 @@ export const normalizeFileViewerToolbar = (
   }
   if (toolbar && typeof toolbar === 'object') {
     return {
-      download: toolbar.download !== false,
-      print: toolbar.print !== false,
-      exportHtml: toolbar.exportHtml !== false,
-      zoom: toolbar.zoom !== false,
+      download: toolbar.download !== false && isFileViewerToolbarOperationVisible(toolbar, 'download'),
+      print: toolbar.print !== false && isFileViewerToolbarOperationVisible(toolbar, 'print'),
+      exportHtml: toolbar.exportHtml !== false && isFileViewerToolbarOperationVisible(toolbar, 'export-html'),
+      zoom: toolbar.zoom !== false && hasAnyToolbarZoomOperation(toolbar),
+      items: toolbar.items,
+      permissions: toolbar.permissions,
+      position: toolbar.position,
+      beforeOperation: toolbar.beforeOperation,
+      beforeDownload: toolbar.beforeDownload,
+      beforePrint: toolbar.beforePrint,
+      beforeExportHtml: toolbar.beforeExportHtml,
     };
   }
   return {
@@ -1015,7 +1092,13 @@ export const isFileViewerZoomButtonDisabled = ({
   zoomState: FileViewerZoomState;
   action: keyof Pick<FileViewerZoomState, 'canZoomIn' | 'canZoomOut' | 'canReset'>;
 }) => {
-  return toolbarDisabled || !availability.zoom || !zoomState[action];
+  const operation = FILE_VIEWER_ZOOM_BUTTON_OPERATIONS[action];
+  const operationAllowed = operation === 'zoom-in'
+    ? availability.zoomIn
+    : operation === 'zoom-out'
+      ? availability.zoomOut
+      : availability.zoomReset;
+  return toolbarDisabled || !availability.zoom || !operationAllowed || !zoomState[action];
 };
 
 export const isFileViewerToolbarDisabled = ({
@@ -1034,7 +1117,10 @@ export const resolveFileViewerToolbarState = ({
   loading = false,
   ...availabilityInput
 }: ResolveFileViewerToolbarStateInput): FileViewerToolbarState => {
-  const operationAvailability = resolveFileViewerOperationAvailability(availabilityInput);
+  const operationAvailability = applyToolbarPermissionsToAvailability(
+    resolveFileViewerOperationAvailability(availabilityInput),
+    options?.toolbar
+  );
   const visibleToolbar = resolveVisibleFileViewerToolbar(toolbar, operationAvailability);
 
   return {

@@ -8,15 +8,16 @@ export const ARCHIVE_EXTENSIONS = [
 
 export const MODEL_EXTENSIONS = [
   'glb', 'gltf', 'obj', 'stl', 'ply', 'fbx', 'dae', '3ds', '3mf', 'amf', 'usd', 'usda',
-  'usdc', 'usdz', 'kmz', 'step', 'stp', 'iges', 'igs', 'ifc', '3dm', 'pcd', 'wrl',
+  'usdc', 'usdz', 'kmz', 'step', 'stp', 'iges', 'igs', 'ifc', '3dm', 'brep', 'pcd', 'wrl',
   'vrml', 'xyz', 'vtk', 'vtp',
 ] as const;
 
 export const TEXT_EXTENSIONS = [
   'txt', 'json', 'js', 'mjs', 'cjs', 'css', 'java', 'py', 'html', 'htm', 'jsx', 'ts',
   'tsx', 'xml', 'log', 'vue', 'yaml', 'yml', 'ini', 'sh', 'bash', 'sql', 'go', 'rs',
-  'php', 'c', 'cpp', 'cc', 'h', 'hpp', 'cs', 'diff', 'jsonc', 'json5', 'ipynb', 'toml',
-  'proto', 'hcl', 'tex', 'gv', 'http', 'react', 'rb', 'swift', 'kt',
+  'php', 'c', 'cpp', 'cc', 'h', 'hpp', 'cs', 'diff', 'patch', 'bundle', 'bdl',
+  'jsonc', 'json5', 'ipynb', 'toml', 'proto', 'hcl', 'tex', 'gv', 'http', 'react',
+  'rb', 'swift', 'kt',
 ] as const;
 
 export const IMAGE_EXTENSIONS = [
@@ -109,7 +110,7 @@ export const DEFAULT_RENDERER_DEFINITIONS = [
     id: 'eda',
     label: 'EDA',
     category: 'eda',
-    extensions: ['olb', 'dra'],
+    extensions: ['olb', 'dra', 'gds', 'oas', 'oasis'],
     async: true,
     capabilities: { download: true, print: true, exportHtml: true, zoom: false, search: true },
   },
@@ -141,7 +142,15 @@ export const DEFAULT_RENDERER_DEFINITIONS = [
     id: 'drawing',
     label: 'Drawing',
     category: 'drawing',
-    extensions: ['excalidraw', 'drawio', 'dio'],
+    extensions: ['excalidraw', 'drawio', 'dio', 'mermaid', 'mmd', 'plantuml', 'puml'],
+    async: true,
+    capabilities: { download: true, print: true, exportHtml: true, zoom: 'provider', search: true },
+  },
+  {
+    id: 'mindmap',
+    label: 'Mind Map',
+    category: 'mindmap',
+    extensions: ['xmind'],
     async: true,
     capabilities: { download: true, print: true, exportHtml: true, zoom: 'provider', search: true },
   },

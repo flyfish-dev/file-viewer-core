@@ -28,6 +28,7 @@ export const DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL =
   'wasm/typst/typst_ts_web_compiler_bg.wasm';
 export const DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_URL =
   'wasm/typst/typst_ts_renderer_bg.wasm';
+export const DEFAULT_FILE_VIEWER_TYPST_FONT_ASSETS_URL = 'wasm/typst/fonts/';
 // Compatibility aliases kept for older imports. They intentionally resolve to
 // local viewer assets; the preview runtime must not fall back to a public CDN.
 export const FALLBACK_FILE_VIEWER_TYPST_COMPILER_WASM_URL =
@@ -86,6 +87,7 @@ export type FileViewerRendererAssetOptionPath =
   | 'pdf.standardFontDataUrl'
   | 'spreadsheet.workerUrl'
   | 'typst.compilerWasmUrl'
+  | 'typst.fontAssetsUrl'
   | 'typst.rendererWasmUrl';
 
 export interface FileViewerRendererAssetDefinition {
@@ -311,6 +313,16 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         optionPath: 'typst.rendererWasmUrl',
         description: 'Typst SVG renderer WebAssembly module copied to the public assets directory.',
       },
+      {
+        id: 'typst-font-assets',
+        rendererId: 'typst',
+        kind: 'directory',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_TYPST_FONT_ASSETS_URL,
+        optionPath: 'typst.fontAssetsUrl',
+        description: 'Self-hosted default Typst text fonts used by typst.ts without public CDN requests.',
+      },
     ],
   },
   {
@@ -349,6 +361,32 @@ export const resolveFileViewerAssetUrl = (
   const resolved = new URL(raw, resolvedBase).href;
 
   return options.trimTrailingSlash ? resolved.replace(/\/+$/, '') : resolved;
+};
+
+const getFileViewerDocumentOriginBaseUrl = (documentBaseUrl?: string) => {
+  try {
+    const parsed = new URL(documentBaseUrl || DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL, DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL);
+    if (parsed.origin && parsed.origin !== 'null') {
+      return `${parsed.origin}/`;
+    }
+  } catch {
+    // Keep the resolver deterministic in non-browser tests and unusual URL schemes.
+  }
+  return DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL;
+};
+
+const resolveFileViewerRootDefaultAssetUrl = (
+  value: string | URL | undefined,
+  fallback: string,
+  options: ResolveFileViewerAssetUrlOptions = {}
+) => {
+  if (value !== undefined && value !== null && String(value).trim()) {
+    return resolveFileViewerAssetUrl(value, fallback, options);
+  }
+  return resolveFileViewerAssetUrl(undefined, fallback, {
+    ...options,
+    baseUrl: getFileViewerDocumentOriginBaseUrl(options.documentBaseUrl),
+  });
 };
 
 export const resolveFileViewerArchiveWorkerUrl = (
@@ -391,16 +429,16 @@ export const resolveFileViewerPdfAssetUrls = (
   documentBaseUrl?: string
 ): ResolvedFileViewerPdfAssetUrls => {
   return {
-    workerUrl: resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_PDF_WORKER_PATH, {
+    workerUrl: resolveFileViewerRootDefaultAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_PDF_WORKER_PATH, {
       documentBaseUrl,
     }),
-    cMapUrl: resolveFileViewerAssetUrl(options?.cMapUrl, DEFAULT_FILE_VIEWER_PDF_CMAP_PATH, {
+    cMapUrl: resolveFileViewerRootDefaultAssetUrl(options?.cMapUrl, DEFAULT_FILE_VIEWER_PDF_CMAP_PATH, {
       documentBaseUrl,
     }),
-    wasmUrl: resolveFileViewerAssetUrl(options?.wasmUrl, DEFAULT_FILE_VIEWER_PDF_WASM_PATH, {
+    wasmUrl: resolveFileViewerRootDefaultAssetUrl(options?.wasmUrl, DEFAULT_FILE_VIEWER_PDF_WASM_PATH, {
       documentBaseUrl,
     }),
-    standardFontDataUrl: resolveFileViewerAssetUrl(
+    standardFontDataUrl: resolveFileViewerRootDefaultAssetUrl(
       options?.standardFontDataUrl,
       DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH,
       { documentBaseUrl }
@@ -472,6 +510,18 @@ export const resolveFileViewerTypstRendererWasmUrl = (
   );
 };
 
+export const resolveFileViewerTypstFontAssetsUrl = (
+  options?: Pick<FileViewerTypstOptions, 'fontAssetsUrl'> | null,
+  overrides: Array<string | undefined> = [],
+  documentBaseUrl?: string
+) => {
+  return resolveFileViewerAssetUrl(
+    options?.fontAssetsUrl || overrides.find(Boolean),
+    DEFAULT_FILE_VIEWER_TYPST_FONT_ASSETS_URL,
+    { documentBaseUrl, trimTrailingSlash: true }
+  );
+};
+
 export const resolveFileViewerDataSqlWasmUrl = (
   options?: Pick<FileViewerDataOptions, 'sqlWasmUrl'> | null,
   overrides: Array<string | undefined> = [],
@@ -527,6 +577,8 @@ const getRendererAssetOptionValue = (
       return options?.spreadsheet?.workerUrl;
     case 'typst.compilerWasmUrl':
       return options?.typst?.compilerWasmUrl;
+    case 'typst.fontAssetsUrl':
+      return options?.typst?.fontAssetsUrl;
     case 'typst.rendererWasmUrl':
       return options?.typst?.rendererWasmUrl;
     default:

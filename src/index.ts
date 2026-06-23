@@ -17,6 +17,10 @@ export {
   DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL,
   DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH,
   DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH,
+  DEFAULT_FILE_VIEWER_PDF_CMAP_PATH,
+  DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH,
+  DEFAULT_FILE_VIEWER_PDF_WASM_PATH,
+  DEFAULT_FILE_VIEWER_PDF_WORKER_PATH,
   DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS,
   DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH,
   DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL,
@@ -31,6 +35,8 @@ export {
   resolveFileViewerDataSqlWasmUrl,
   resolveFileViewerDocxWorkerJsZipUrl,
   resolveFileViewerDocxWorkerUrl,
+  resolveFileViewerDrawioViewerScriptUrl,
+  resolveFileViewerPdfAssetUrls,
   resolveFileViewerRendererAssets,
   resolveFileViewerSpreadsheetWorkerUrl,
   resolveFileViewerTypstCompilerWasmUrl,
@@ -149,6 +155,17 @@ export {
   waitForFileViewerPrintWindowReady,
 } from './output/export';
 export {
+  applyPrintPageSize,
+  buildPrintPageStyle,
+  formatCssPixels,
+  getElementPrintPageSize,
+} from './output/printLayout';
+export type {
+  ApplyPrintPageSizeOptions,
+  BuildPrintPageStyleOptions,
+  PrintPageSize,
+} from './output/printLayout';
+export {
   DEFAULT_FILE_VIEWER_DOWNLOAD_FILENAME,
   DEFAULT_FILE_VIEWER_EXPORT_FILENAME,
   DEFAULT_FILE_VIEWER_PREVIEW_TITLE,
@@ -176,22 +193,36 @@ export type {
   FileViewerPublicOperationActionHandlers,
   ResolveFileViewerOperationActionErrorMessageInput,
 } from './viewer/operations';
-export { createRendererRegistry } from './registry/registry';
 export {
+  collectFileViewerRendererPlugins,
+  createRendererRegistry,
+  installFileViewerRendererPlugins,
+} from './registry/registry';
+export {
+  CORE_LITE_RENDERER_IDS,
   coreBrowserRendererHandlers,
+  coreLiteBrowserRendererHandlers,
+  coreLiteRendererDefinitions,
   createFileViewerCoreRendererRegistry,
   fileViewerCoreRendererDispatcher,
   fileViewerCoreRendererRegistry,
   fileViewerCoreRendererRegistryBridge,
   missingFileViewerCoreRendererHandlers,
 } from './renderers/index';
+export type {
+  CreateFileViewerCoreRendererRegistryOptions,
+} from './renderers/index';
 export const renderFileViewerAudio = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   type?: string
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderAudio } = await import('./renderers/audio');
-  return renderAudio(buffer, target, type);
+  void buffer;
+  void target;
+  void type;
+  throw new Error(
+    'Audio and MIDI rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-media, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerArchive = async (
   buffer: ArrayBuffer,
@@ -199,8 +230,13 @@ export const renderFileViewerArchive = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderArchive } = await import('./renderers/archive');
-  return renderArchive(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'Archive rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-archive, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerCad = async (
   buffer: ArrayBuffer,
@@ -208,16 +244,25 @@ export const renderFileViewerCad = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderCad } = await import('./renderers/cad');
-  return renderCad(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'CAD rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-cad, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerCode = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   type?: string
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderCode } = await import('./renderers/code');
-  return renderCode(buffer, target, type);
+  void buffer;
+  void target;
+  void type;
+  throw new Error(
+    'Code and text rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-text, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerDataAsset = async (
   buffer: ArrayBuffer,
@@ -225,8 +270,13 @@ export const renderFileViewerDataAsset = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderDataAsset } = await import('./renderers/data');
-  return renderDataAsset(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'Data asset rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-data, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerDrawing = async (
   buffer: ArrayBuffer,
@@ -234,8 +284,13 @@ export const renderFileViewerDrawing = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderDrawing } = await import('./renderers/drawing');
-  return renderDrawing(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'Draw.io and Excalidraw rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-drawing, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerEda = async (
   buffer: ArrayBuffer,
@@ -243,8 +298,13 @@ export const renderFileViewerEda = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderEda } = await import('./renderers/eda');
-  return renderEda(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'EDA rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-eda, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerEmail = async (
   buffer: ArrayBuffer,
@@ -252,23 +312,35 @@ export const renderFileViewerEmail = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderEmail } = await import('./renderers/email');
-  return renderEmail(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'Email rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-email, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerEpub = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderEpub } = await import('./renderers/epub');
-  return renderEpub(buffer, target);
+  void buffer;
+  void target;
+  throw new Error(
+    'EPUB rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-epub, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerGeo = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   type?: string
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderGeo } = await import('./renderers/geo');
-  return renderGeo(buffer, target, type);
+  void buffer;
+  void target;
+  void type;
+  throw new Error(
+    'Geospatial rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-geo, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerImage = async (
   buffer: ArrayBuffer,
@@ -282,8 +354,11 @@ export const renderFileViewerMarkdown = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderMarkdown } = await import('./renderers/markdown');
-  return renderMarkdown(buffer, target);
+  void buffer;
+  void target;
+  throw new Error(
+    'Markdown rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-text, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerModel = async (
   buffer: ArrayBuffer,
@@ -291,32 +366,49 @@ export const renderFileViewerModel = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderModel } = await import('./renderers/model');
-  return renderModel(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    '3D model rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-3d, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerOfd = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderOfd } = await import('./renderers/ofd');
-  return renderOfd(buffer, target, context);
+  void buffer;
+  void target;
+  void context;
+  throw new Error(
+    'OFD rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-ofd, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerOpenDocument = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   type?: string
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderOpenDocument } = await import('./renderers/openDocument');
-  return renderOpenDocument(buffer, target, type);
+  void buffer;
+  void target;
+  void type;
+  throw new Error(
+    'OpenDocument/RTF rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-word, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerPdf = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderPdf } = await import('./renderers/pdf');
-  return renderPdf(buffer, target, context);
+  void buffer;
+  void target;
+  void context;
+  throw new Error(
+    'PDF rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-pdf, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerPptx = async (
   buffer: ArrayBuffer,
@@ -324,8 +416,13 @@ export const renderFileViewerPptx = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderPptx } = await import('./renderers/pptx');
-  return renderPptx(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'PPTX rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-presentation, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerTypst = async (
   buffer: ArrayBuffer,
@@ -333,15 +430,23 @@ export const renderFileViewerTypst = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderTypst } = await import('./renderers/typst');
-  return renderTypst(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'Typst rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-typst, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerUmd = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderUmd } = await import('./renderers/umd');
-  return renderUmd(buffer, target);
+  void buffer;
+  void target;
+  throw new Error(
+    'UMD ebook rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-epub, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerVideo = async (
   buffer: ArrayBuffer,
@@ -349,24 +454,37 @@ export const renderFileViewerVideo = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderVideo } = await import('./renderers/video');
-  return renderVideo(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'Video and HLS rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-media, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerWordDoc = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderWordDoc } = await import('./renderers/wordDoc');
-  return renderWordDoc(buffer, target, context);
+  void buffer;
+  void target;
+  void context;
+  throw new Error(
+    'DOC rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-word, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerWordDocx = async (
   buffer: ArrayBuffer,
   target: HTMLDivElement,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderWordDocx } = await import('./renderers/wordDocx');
-  return renderWordDocx(buffer, target, context);
+  void buffer;
+  void target;
+  void context;
+  throw new Error(
+    'DOCX rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-word, or use @file-viewer/preset-all.'
+  );
 };
 export const renderFileViewerSpreadsheet = async (
   buffer: ArrayBuffer,
@@ -374,26 +492,24 @@ export const renderFileViewerSpreadsheet = async (
   type?: string,
   context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> => {
-  const { default: renderSpreadsheet } = await import('./renderers/spreadsheet');
-  return renderSpreadsheet(buffer, target, type, context);
+  void buffer;
+  void target;
+  void type;
+  void context;
+  throw new Error(
+    'Spreadsheet rendering has moved out of @file-viewer/core. Install and pass @file-viewer/renderer-spreadsheet, or use @file-viewer/preset-all.'
+  );
 };
-export {
-  parseEdaFile,
-} from './renderers/edaParser';
-export type {
-  EdaDiagnostic,
-  EdaDiagnosticLevel,
-  EdaDomainRole,
-  EdaEntity,
-  EdaFileType,
-  EdaParseResult,
-  EdaParserMode,
-  EdaProperty,
-  EdaStats,
-  EdaStreamKind,
-  EdaStreamView,
-  EdaTreeNode,
-} from './renderers/edaParser';
+export const parseEdaFile = async (
+  buffer: ArrayBuffer,
+  type?: string
+): Promise<never> => {
+  void buffer;
+  void type;
+  throw new Error(
+    'EDA parsing has moved out of @file-viewer/core. Import parseEdaFile from @file-viewer/renderer-eda instead.'
+  );
+};
 export {
   ADAPTER_PRINT_REQUIRED_EXTENSIONS,
   createUnsupportedAvailability,
@@ -432,6 +548,7 @@ export {
   getFileViewerBeforeOperationHooks,
   getFileViewerLifecycleHookName,
   hasVisibleFileViewerToolbarActions,
+  isFileViewerToolbarOperationPermitted,
   isFileViewerZoomButtonDisabled,
   normalizeFileViewerToolbar,
   reportFileViewerLifecycleHookError,
@@ -766,6 +883,9 @@ export type {
   FileViewerSerializableToolbarOptions,
 } from './config/options';
 export type {
+  InstallFileViewerRendererPluginsOptions,
+} from './registry/registry';
+export type {
   CreateFileViewerRendererDispatcherOptions,
   FileViewerRendererDispatcher,
   FileViewerRendererHandlerEntry,
@@ -822,6 +942,7 @@ export type {
   FileViewerDocumentChunk,
   FileViewerDownloadOptions,
   FileViewerDocxOptions,
+  FileViewerDrawingOptions,
   FileViewerEvent,
   FileViewerEventHandler,
   FileViewerEventType,
@@ -833,6 +954,7 @@ export type {
   FileRenderExportOptions,
   FileRenderHandler,
   FileRenderHandlerComposite,
+  FileViewerBuiltinRendererPreset,
   FileViewerInstance,
   FileViewerLifecycleContext,
   FileViewerLifecycleHooks,
@@ -845,8 +967,17 @@ export type {
   FileViewerPrintOptions,
   FileViewerPublicApi,
   FileViewerRenderedInstance,
+  FileViewerRendererMode,
+  FileViewerRendererPluginAssetKind,
+  FileViewerRendererPluginAssetManifest,
+  FileViewerRendererPluginAssetEntry,
   FileViewerRenderStateKind,
   FileViewerRendererCategory,
+  FileViewerRendererHandlerRegistration,
+  FileViewerRendererInstallContext,
+  FileViewerRendererPlugin,
+  FileViewerRendererPluginInput,
+  FileViewerRendererPreset,
   FileViewerSearchMatch,
   FileViewerSearchOptions,
   FileViewerSearchProvider,
@@ -857,6 +988,7 @@ export type {
   FileViewerStateDescriptor,
   FileViewerStateTheme,
   FileViewerThemeMode,
+  FileViewerToolbarActionMap,
   FileViewerToolbarOptions,
   FileViewerToolbarPosition,
   FileViewerTypstOptions,

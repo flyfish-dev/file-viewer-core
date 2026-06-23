@@ -20,7 +20,7 @@ export type FileViewerSerializableCadOptions = Omit<FileViewerCadOptions, 'worke
 
 export interface FileViewerSerializableOptions extends Omit<
   FileViewerOptions,
-  'toolbar' | 'cad' | 'hooks' | 'beforeOperation'
+  'toolbar' | 'cad' | 'hooks' | 'beforeOperation' | 'renderers' | 'rendererMode'
 > {
   toolbar?: boolean | FileViewerSerializableToolbarOptions;
   archive?: FileViewerArchiveOptions;
@@ -78,6 +78,8 @@ const stripExecutionOnlyOptions = (value: Record<string, unknown>) => {
   const {
     beforeOperation: _beforeOperation,
     hooks: _hooks,
+    renderers: _renderers,
+    rendererMode: _rendererMode,
     ...rest
   } = value;
 
