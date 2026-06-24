@@ -123,6 +123,21 @@ export {
   runFileViewerToolbarZoomSync,
   serializeFileViewerContext,
 } from './lifecycle/operations';
+export {
+  FILE_VIEWER_BUILTIN_MESSAGES,
+  FILE_VIEWER_DEFAULT_LOCALE,
+  FILE_VIEWER_FALLBACK_LOCALE,
+  createFileViewerTranslator,
+  formatFileViewerMessage,
+  normalizeFileViewerLocale,
+  resolveFileViewerLocale,
+  translateFileViewerMessage,
+} from './i18n/messages';
+export type {
+  FileViewerI18nInput,
+  FileViewerResolvedLocale,
+  ResolveFileViewerI18nInput,
+} from './i18n/messages';
 export type {
   BuildFileViewerLifecycleContextFromNormalizedSourceInput,
   BuildFileViewerOperationContextFromLifecycleStateInput,
@@ -395,6 +410,12 @@ export type {
   FileViewerLifecycleContext,
   FileViewerLifecycleHooks,
   FileViewerLifecyclePhase,
+  FileViewerI18nOptions,
+  FileViewerLocale,
+  FileViewerMessageKey,
+  FileViewerMessageParams,
+  FileViewerMessageResolver,
+  FileViewerMessages,
   FileViewerOperationAvailability,
   FileViewerOperationContext,
   FileViewerOperationType,

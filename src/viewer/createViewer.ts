@@ -124,9 +124,13 @@ const resolveAutoRenderersEnabled = (options: FileViewerOptions) => {
   return (options.rendererMode || 'extend') !== 'replace';
 };
 
-const renderMissingRendererState = (container: HTMLElement, type: string) => {
+const renderMissingRendererState = (
+  container: HTMLElement,
+  type: string,
+  options?: FileViewerOptions
+) => {
   const documentRef = container.ownerDocument;
-  const state = createFileViewerUnsupportedState(type);
+  const state = createFileViewerUnsupportedState(type, undefined, options);
   const wrapper = documentRef.createElement('div');
   wrapper.className = 'file-viewer-missing-renderer';
   wrapper.style.cssText = [
@@ -147,8 +151,7 @@ const renderMissingRendererState = (container: HTMLElement, type: string) => {
   title.textContent = state.message;
   title.style.cssText = 'display:block;margin-bottom:8px;color:#172033;font-size:16px;';
   const description = documentRef.createElement('p');
-  description.textContent = state.description ||
-    '当前内置 renderer 配置没有加载该格式。请安装并传入对应 @file-viewer/renderer-* 包，或使用 @file-viewer/preset-all。';
+  description.textContent = state.description || state.title;
   description.style.cssText = 'max-width:520px;margin:0;';
   content.append(title, description);
   wrapper.append(content);
@@ -347,7 +350,7 @@ export const createViewer = (
       await emitLifecycle(options, createOptions.onEvent, 'load-start', normalized, version, startedAt);
 
       if (!renderer?.load) {
-        renderMissingRendererState(container, normalized.extension);
+        renderMissingRendererState(container, normalized.extension, options);
         applyFileViewerRenderSurfaceState(renderSurfaceState, { session: null });
         emitOperationAvailabilityChange();
         emitZoomChange();

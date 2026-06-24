@@ -1,5 +1,10 @@
 import { normalizeFileExtension } from '../source';
 import { DEFAULT_RENDERER_DEFINITIONS } from '../registry/formats';
+import {
+  resolveFileViewerLocale,
+  translateFileViewerMessage,
+  type FileViewerI18nInput,
+} from '../i18n/messages';
 import type {
   FileViewerRenderStateKind,
   FileViewerRendererCategory,
@@ -14,6 +19,12 @@ export const FILE_VIEWER_PREVIEW_MESSAGES = Object.freeze({
   downloading: '正在下载文件资源...',
   streamingPdf: '正在建立 PDF 流式预览...',
   reading: '正在解析文件内容...',
+});
+
+export const resolveFileViewerPreviewMessages = (i18n?: FileViewerI18nInput) => Object.freeze({
+  downloading: translateFileViewerMessage(i18n, 'preview.downloading'),
+  streamingPdf: translateFileViewerMessage(i18n, 'preview.streamingPdf'),
+  reading: translateFileViewerMessage(i18n, 'preview.reading'),
 });
 
 export const DEFAULT_FILE_VIEWER_STATE_THEME: FileViewerStateTheme = Object.freeze({
@@ -180,13 +191,14 @@ const createFileViewerStateDescriptor = ({
 
 export const createFileViewerPreviewLoadingState = (
   extension = '',
-  message = FILE_VIEWER_PREVIEW_MESSAGES.reading,
-  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME
+  message?: string,
+  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME,
+  i18n?: FileViewerI18nInput
 ) => createFileViewerStateDescriptor({
   state: 'loading',
   extension,
   title: theme.label,
-  message,
+  message: message || translateFileViewerMessage(i18n, 'preview.reading'),
   description: theme.hint,
   theme,
   recoverable: false,
@@ -194,44 +206,59 @@ export const createFileViewerPreviewLoadingState = (
 
 export const createFileViewerReadyState = (
   extension = '',
-  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME
+  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME,
+  i18n?: FileViewerI18nInput
 ) => createFileViewerStateDescriptor({
   state: 'ready',
   extension,
-  title: '预览完成',
-  message: '文件内容已完成渲染。',
+  title: translateFileViewerMessage(i18n, 'state.ready.title'),
+  message: translateFileViewerMessage(i18n, 'state.ready.message'),
   theme,
   recoverable: false,
 });
 
 export const createFileViewerEmptyState = (
   extension = '',
-  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME
+  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME,
+  i18n?: FileViewerI18nInput
 ) => createFileViewerStateDescriptor({
   state: 'empty',
   extension,
-  title: '暂无文件',
-  message: '请选择文件或提供可访问的文件地址后开始预览。',
+  title: translateFileViewerMessage(i18n, 'state.empty.title'),
+  message: translateFileViewerMessage(i18n, 'state.empty.message'),
   theme,
   recoverable: true,
 });
 
 export const createFileViewerUnsupportedState = (
   extension = '',
-  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME
+  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME,
+  i18n?: FileViewerI18nInput
 ) => {
   const label = extensionLabel(extension);
   const installHint = resolveFileViewerRendererInstallHint(extension);
   if (installHint) {
-    const rendererTip = installHint.rendererPackage
-      ? `；如果需要极致裁剪，也可以只安装 ${installHint.rendererPackage}`
+    const locale = resolveFileViewerLocale(i18n);
+    const localeRendererTip = installHint.rendererPackage
+      ? locale === 'zh-CN'
+        ? `；如果需要极致裁剪，也可以只安装 ${installHint.rendererPackage}`
+        : `; for a strict custom cut, install only ${installHint.rendererPackage}`
       : '';
     return createFileViewerStateDescriptor({
       state: 'unsupported',
       extension,
-      title: '需要装配预览能力',
-      message: `${label} 格式已在支持矩阵中，但当前项目尚未装配 ${installHint.rendererLabel} renderer。`,
-      description: `推荐安装 ${installHint.presetPackage} 并启用 @file-viewer/vite-plugin（preset: '${installHint.vitePreset}' 或 preset: 'auto'）${rendererTip}，也可以通过 options.renderers 手动传入对应 renderer。`,
+      title: translateFileViewerMessage(i18n, 'state.unsupported.install.title'),
+      message: translateFileViewerMessage(i18n, 'state.unsupported.install.message', {
+        extension: label,
+        rendererLabel: installHint.rendererLabel,
+      }),
+      description: translateFileViewerMessage(i18n, 'state.unsupported.install.description', {
+        extension: label,
+        rendererLabel: installHint.rendererLabel,
+        presetPackage: installHint.presetPackage,
+        vitePreset: installHint.vitePreset,
+        rendererTip: localeRendererTip,
+      }),
       theme,
       recoverable: true,
     });
@@ -240,9 +267,11 @@ export const createFileViewerUnsupportedState = (
   return createFileViewerStateDescriptor({
     state: 'unsupported',
     extension,
-    title: '暂不支持在线预览',
-    message: `不支持${label}格式的在线预览，请下载后预览或转换为支持的格式。`,
-    description: DEFAULT_FILE_VIEWER_UNSUPPORTED_DESCRIPTION,
+    title: translateFileViewerMessage(i18n, 'state.unsupported.title'),
+    message: translateFileViewerMessage(i18n, 'state.unsupported.message', {
+      extension: label,
+    }),
+    description: translateFileViewerMessage(i18n, 'state.unsupported.description'),
     theme,
     recoverable: true,
   });
@@ -262,11 +291,12 @@ export const formatFileViewerErrorMessage: FileViewerErrorMessageFormatter = (pr
 export const createFileViewerErrorState = (
   extension = '',
   error: unknown = '未知错误',
-  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME
+  theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME,
+  i18n?: FileViewerI18nInput
 ) => createFileViewerStateDescriptor({
   state: 'error',
   extension,
-  title: '预览失败',
+  title: translateFileViewerMessage(i18n, 'state.error.title'),
   message: normalizeFileViewerErrorMessage(error),
   theme,
   recoverable: true,

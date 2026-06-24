@@ -103,6 +103,7 @@ export const createFileViewerLifecycleFacade = ({
         resolveFileViewerBeforeOperationErrorMessage({
           error,
           formatErrorMessage,
+          i18n: getOptions(),
         }),
         context
       );
@@ -119,6 +120,7 @@ export const createFileViewerLifecycleFacade = ({
       currentFile: getCurrentFile(),
       fallbackFile: getFallbackFile(),
       fallbackUrl: getFallbackUrl(),
+      i18n: getOptions(),
     });
   };
 
@@ -144,6 +146,7 @@ export const createFileViewerLifecycleFacade = ({
         sourceUrl,
         filename: getFilename(),
         bufferSize: getBufferSize(),
+        i18n: getOptions(),
       });
     },
     buildRenderCompleteState({

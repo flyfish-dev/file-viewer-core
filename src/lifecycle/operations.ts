@@ -5,6 +5,10 @@
 // operation execution remains in `viewer/operations`.
 import { resolvePrintAvailability } from '../registry/capabilities';
 import { getExtension, normalizeFilename } from '../source';
+import {
+  translateFileViewerMessage,
+  type FileViewerI18nInput,
+} from '../i18n/messages';
 import type { FileViewerErrorMessageFormatter } from '../viewer/state';
 import {
   createFileViewerOriginalSourceState,
@@ -161,6 +165,7 @@ export interface ResolveFileViewerBeforeOperationErrorMessageInput {
   error: unknown;
   formatErrorMessage: FileViewerErrorMessageFormatter;
   prefix?: string;
+  i18n?: FileViewerI18nInput;
 }
 
 export interface ResolveFileViewerLifecycleHookErrorMessageInput {
@@ -331,6 +336,7 @@ export interface BuildFileViewerOperationContextFromLifecycleStateInput {
   fallbackUrl?: string | null;
   timestamp?: number;
   lifecycleTimestamp?: number;
+  i18n?: FileViewerI18nInput;
 }
 
 export interface RunFileViewerActiveUnloadStartInput {
@@ -468,14 +474,23 @@ export const buildFileViewerOperationContext = <
 >(
   operation: FileViewerOperationType,
   lifecycleContext: BuiltFileViewerLifecycleContext<Source>,
-  timestamp = Date.now()
+  timestamp = Date.now(),
+  i18n?: FileViewerI18nInput
 ): BuiltFileViewerOperationContext<Source> => {
   const { phase: _phase, ...context } = lifecycleContext;
+  const labelKey = {
+    download: 'operation.download',
+    print: 'operation.print',
+    'export-html': 'operation.exportHtml',
+    'zoom-in': 'operation.zoomIn',
+    'zoom-out': 'operation.zoomOut',
+    'zoom-reset': 'operation.zoomReset',
+  } as const satisfies Record<FileViewerOperationType, Parameters<typeof translateFileViewerMessage>[1]>;
 
   return {
     ...context,
     operation,
-    label: FILE_VIEWER_OPERATION_LABELS[operation],
+    label: translateFileViewerMessage(i18n, labelKey[operation]),
     timestamp,
   };
 };
@@ -491,6 +506,7 @@ export const buildFileViewerOperationContextFromLifecycleState = ({
   fallbackUrl,
   timestamp,
   lifecycleTimestamp,
+  i18n,
 }: BuildFileViewerOperationContextFromLifecycleStateInput): FileViewerOperationContext => {
   const activeContext = lifecycleState.getActiveDocumentContext();
   const fallbackSource = resolveFileViewerLifecycleFallbackSource({
@@ -509,7 +525,7 @@ export const buildFileViewerOperationContextFromLifecycleState = ({
     timestamp: lifecycleTimestamp,
   });
 
-  return buildFileViewerOperationContext(operation, baseContext, timestamp);
+  return buildFileViewerOperationContext(operation, baseContext, timestamp, i18n);
 };
 
 export const emitFileViewerComponentLifecycleEvent = (
@@ -534,9 +550,10 @@ export const emitFileViewerComponentLifecycleEvent = (
 export const resolveFileViewerBeforeOperationErrorMessage = ({
   error,
   formatErrorMessage,
-  prefix = FILE_VIEWER_BEFORE_OPERATION_ERROR_PREFIX,
+  prefix,
+  i18n,
 }: ResolveFileViewerBeforeOperationErrorMessageInput) => {
-  return formatErrorMessage(prefix, error);
+  return formatErrorMessage(prefix || translateFileViewerMessage(i18n, 'error.beforeOperation'), error);
 };
 
 export const resolveFileViewerLifecycleHookErrorMessage = ({

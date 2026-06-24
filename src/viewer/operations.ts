@@ -6,10 +6,15 @@ import {
 } from '../output/export';
 import { DEFAULT_FILE_VIEWER_SOURCE_FILENAME } from '../source';
 import type { FileViewerErrorMessageFormatter } from './state';
+import {
+  translateFileViewerMessage,
+  type FileViewerI18nInput,
+} from '../i18n/messages';
 import type {
   FileRenderExportAdapter,
   FileViewerDownloadOptions,
   FileViewerExportHtmlOptions,
+  FileViewerMessageKey,
   FileViewerOperationType,
   FileViewerPrintOptions,
   NormalizedFileViewerSource,
@@ -37,6 +42,7 @@ export interface ResolveFileViewerOperationFilenameInput {
 
 export interface FileViewerOperationExecutorBase {
   beforeOperation?: (operation: FileViewerOperationType) => boolean | Promise<boolean>;
+  i18n?: FileViewerI18nInput;
 }
 
 export interface ExecuteFileViewerDownloadOperationInput
@@ -78,16 +84,24 @@ export const FILE_VIEWER_OPERATION_ACTION_ERROR_PREFIXES = {
   'export-html': '导出 HTML 失败',
 } as const satisfies Record<FileViewerFileOperationType, string>;
 
+const FILE_VIEWER_OPERATION_ACTION_ERROR_MESSAGE_KEYS = {
+  download: 'error.download',
+  print: 'error.print',
+  'export-html': 'error.exportHtml',
+} as const satisfies Record<FileViewerFileOperationType, FileViewerMessageKey>;
+
 export interface ResolveFileViewerOperationActionErrorMessageInput {
   context: FileViewerOperationActionErrorContext;
   formatErrorMessage: FileViewerOperationActionErrorFormatter;
   prefixes?: FileViewerOperationActionErrorPrefixes;
+  i18n?: FileViewerI18nInput;
 }
 
 export interface CreateFileViewerOperationActionHandlersInput extends FileViewerOperationExecutorBase {
   getBuffer?: () => ArrayBuffer | null | undefined;
   getFile?: () => File | Blob | null | undefined;
   getUrl?: () => string | null | undefined;
+  getI18n?: () => FileViewerI18nInput;
   getFilename: () => string | null | undefined;
   getMimeType?: () => string | null | undefined;
   getRenderedSource: () => HTMLElement | null | undefined;
@@ -118,6 +132,7 @@ interface BuildRenderedHtmlDocumentFromOperationInput {
   filename?: string;
   adapter?: FileRenderExportAdapter | null;
   watermarkInlineStyle?: string;
+  i18n?: FileViewerI18nInput;
 }
 
 const getBlobFilename = (file: File | Blob | null | undefined) => {
@@ -183,9 +198,11 @@ export const resolveFileViewerOperationActionErrorMessage = ({
   context,
   formatErrorMessage,
   prefixes,
+  i18n,
 }: ResolveFileViewerOperationActionErrorMessageInput) => {
   return formatErrorMessage(
-    prefixes?.[context.operation] ?? FILE_VIEWER_OPERATION_ACTION_ERROR_PREFIXES[context.operation],
+    prefixes?.[context.operation] ??
+      translateFileViewerMessage(i18n, FILE_VIEWER_OPERATION_ACTION_ERROR_MESSAGE_KEYS[context.operation]),
     context.error
   );
 };
@@ -212,10 +229,11 @@ const buildRenderedHtmlDocumentFromOperation = async (
     filename,
     adapter = null,
     watermarkInlineStyle,
+    i18n,
   }: BuildRenderedHtmlDocumentFromOperationInput
 ) => {
   if (!source) {
-    throw new Error('当前没有可导出的预览内容');
+    throw new Error(translateFileViewerMessage(i18n, 'error.noExportContent'));
   }
 
   return buildFileViewerRenderedHtmlDocument({
@@ -234,11 +252,12 @@ export const executeFileViewerDownloadOperation = async ({
   source,
   filename,
   beforeOperation,
+  i18n,
   throwOnMissingSource = true,
 }: ExecuteFileViewerDownloadOperationInput) => {
   if (!hasFileViewerOriginalSource(source)) {
     if (throwOnMissingSource) {
-      throw new Error('当前没有可下载的源文件');
+      throw new Error(translateFileViewerMessage(i18n, 'error.noDownloadSource'));
     }
     return false;
   }
@@ -274,6 +293,7 @@ export const executeFileViewerExportHtmlOperation = async ({
   download = true,
   filename,
   beforeOperation,
+  i18n,
   ...input
 }: ExecuteFileViewerExportHtmlOperationInput) => {
   if (!await runBeforeOperation(beforeOperation, 'export-html')) {
@@ -283,6 +303,7 @@ export const executeFileViewerExportHtmlOperation = async ({
   const html = await buildRenderedHtmlDocumentFromOperation('export', {
     ...input,
     filename,
+    i18n,
   });
 
   if (download !== false) {
@@ -302,26 +323,27 @@ export const executeFileViewerExportHtmlOperation = async ({
 export const executeFileViewerPrintOperation = async ({
   autoPrint = true,
   beforeOperation,
+  i18n,
   openWindow,
   printAvailable = true,
   printWindow,
   ...input
 }: ExecuteFileViewerPrintOperationInput) => {
   if (!printAvailable) {
-    throw new Error('当前文件类型不支持完整打印，请下载原文件后在本地应用中打印');
+    throw new Error(translateFileViewerMessage(i18n, 'error.printUnavailable'));
   }
 
   if (!await runBeforeOperation(beforeOperation, 'print')) {
     return false;
   }
 
-  const html = await buildRenderedHtmlDocumentFromOperation('print', input);
+  const html = await buildRenderedHtmlDocumentFromOperation('print', { ...input, i18n });
   const targetWindow = printWindow ||
     openWindow?.() ||
     (typeof window !== 'undefined' ? window.open('', '_blank') : null);
 
   if (!targetWindow) {
-    throw new Error('浏览器拦截了打印窗口');
+    throw new Error(translateFileViewerMessage(i18n, 'error.printWindowBlocked'));
   }
 
   targetWindow.document.open();
@@ -343,12 +365,15 @@ const handleFileViewerOperationActionError = (
   {
     errorPrefixes,
     formatErrorMessage,
+    getI18n,
+    i18n,
     onError,
     onErrorMessage,
   }: Pick<
     CreateFileViewerOperationActionHandlersInput,
-    'errorPrefixes' | 'formatErrorMessage' | 'onError' | 'onErrorMessage'
+    'errorPrefixes' | 'formatErrorMessage' | 'i18n' | 'onError' | 'onErrorMessage'
   >
+  & Pick<CreateFileViewerOperationActionHandlersInput, 'getI18n'>
 ) => {
   const context = { operation, error };
   onError?.(context);
@@ -357,6 +382,7 @@ const handleFileViewerOperationActionError = (
       context,
       formatErrorMessage,
       prefixes: errorPrefixes,
+      i18n: getI18n?.() ?? i18n,
     }), context);
   }
 };
@@ -365,6 +391,7 @@ export const createFileViewerOperationActionHandlers = ({
   getBuffer,
   getFile,
   getUrl,
+  getI18n,
   getFilename,
   getMimeType,
   getRenderedSource,
@@ -372,11 +399,14 @@ export const createFileViewerOperationActionHandlers = ({
   getWatermarkInlineStyle,
   getPrintAvailable,
   beforeOperation,
+  i18n,
   errorPrefixes,
   formatErrorMessage,
   onError,
   onErrorMessage,
 }: CreateFileViewerOperationActionHandlersInput): FileViewerOperationActionHandlers => {
+  const resolveI18n = () => getI18n?.() ?? i18n;
+
   const getOriginalSource = () => {
     const file = getFile?.() ?? null;
     return createFileViewerOriginalSourceState({
@@ -397,6 +427,7 @@ export const createFileViewerOperationActionHandlers = ({
       filename,
       watermarkInlineStyle: getWatermarkInlineStyle?.() ?? undefined,
       beforeOperation,
+      i18n: resolveI18n(),
     };
   };
 
@@ -406,12 +437,15 @@ export const createFileViewerOperationActionHandlers = ({
         return await executeFileViewerDownloadOperation({
           source: getOriginalSource(),
           beforeOperation,
+          i18n: resolveI18n(),
           throwOnMissingSource: false,
         });
       } catch (error) {
         handleFileViewerOperationActionError('download', error, {
           errorPrefixes,
           formatErrorMessage,
+          getI18n,
+          i18n,
           onError,
           onErrorMessage,
         });
@@ -425,6 +459,8 @@ export const createFileViewerOperationActionHandlers = ({
         handleFileViewerOperationActionError('export-html', error, {
           errorPrefixes,
           formatErrorMessage,
+          getI18n,
+          i18n,
           onError,
           onErrorMessage,
         });
@@ -441,6 +477,8 @@ export const createFileViewerOperationActionHandlers = ({
         handleFileViewerOperationActionError('print', error, {
           errorPrefixes,
           formatErrorMessage,
+          getI18n,
+          i18n,
           onError,
           onErrorMessage,
         });

@@ -1,4 +1,8 @@
-import type { FileViewerStateTheme } from '../contracts/types';
+import {
+  translateFileViewerMessage,
+  type FileViewerI18nInput,
+} from '../i18n/messages';
+import type { FileViewerMessageKey, FileViewerStateTheme } from '../contracts/types';
 
 export type FileViewerLoadingTheme = FileViewerStateTheme;
 
@@ -15,6 +19,7 @@ export type MutableFileViewerLoadingState = FileViewerLoadingState;
 export interface FileViewerLoadingController {
   readonly state: FileViewerLoadingState;
   setExtension(nextExtend?: string): FileViewerLoadingState;
+  setI18n(nextI18n?: FileViewerI18nInput): FileViewerLoadingState;
   startLoading(nextMessage: string): FileViewerLoadingState;
   setLoadingMessage(nextMessage: string): FileViewerLoadingState;
   stopLoading(): FileViewerLoadingState;
@@ -26,6 +31,7 @@ export interface FileViewerLoadingController {
 
 export interface FileViewerLoadingControllerActionHandlers {
   setExtension(nextExtend?: string): FileViewerLoadingState;
+  setI18n(nextI18n?: FileViewerI18nInput): FileViewerLoadingState;
   startLoading(nextMessage: string): FileViewerLoadingState;
   setLoadingMessage(nextMessage: string): FileViewerLoadingState;
   stopLoading(): FileViewerLoadingState;
@@ -404,13 +410,87 @@ export const FILE_VIEWER_LOADING_THEME_MAP: Record<string, FileViewerLoadingThem
   }
 };
 
+const FILE_VIEWER_LOADING_COPY_KEYS: Record<string, { label: FileViewerMessageKey; hint: FileViewerMessageKey }> = {
+  doc: { label: 'loading.word.label', hint: 'loading.word.hint' },
+  docx: { label: 'loading.word.label', hint: 'loading.wordWorker.hint' },
+  xls: { label: 'loading.sheet.label', hint: 'loading.sheet.hint' },
+  xlsx: { label: 'loading.sheet.label', hint: 'loading.sheet.hint' },
+  csv: { label: 'loading.csv.label', hint: 'loading.csv.hint' },
+  ppt: { label: 'loading.presentation.label', hint: 'loading.presentation.hint' },
+  pptx: { label: 'loading.presentation.label', hint: 'loading.presentation.hint' },
+  pdf: { label: 'loading.pdf.label', hint: 'loading.pdf.hint' },
+  ofd: { label: 'loading.ofd.label', hint: 'loading.ofd.hint' },
+  zip: { label: 'loading.archive.label', hint: 'loading.archive.hint' },
+  rar: { label: 'loading.archive.label', hint: 'loading.archive.hint' },
+  '7z': { label: 'loading.archive.label', hint: 'loading.archive.hint' },
+  tar: { label: 'loading.archive.label', hint: 'loading.archive.hint' },
+  gz: { label: 'loading.archive.label', hint: 'loading.archive.hint' },
+  eml: { label: 'loading.email.label', hint: 'loading.email.hint' },
+  msg: { label: 'loading.email.label', hint: 'loading.msg.hint' },
+  olb: { label: 'loading.eda.label', hint: 'loading.eda.hint' },
+  dra: { label: 'loading.eda.label', hint: 'loading.eda.hint' },
+  dxf: { label: 'loading.cad.label', hint: 'loading.cad.hint' },
+  dwg: { label: 'loading.cad.label', hint: 'loading.dwg.hint' },
+  dwf: { label: 'loading.cad.label', hint: 'loading.dwf.hint' },
+  dwfx: { label: 'loading.cad.label', hint: 'loading.dwfx.hint' },
+  xps: { label: 'loading.cad.label', hint: 'loading.xps.hint' },
+  drawio: { label: 'loading.drawio.label', hint: 'loading.drawio.hint' },
+  dio: { label: 'loading.drawio.label', hint: 'loading.drawio.hint' },
+  excalidraw: { label: 'loading.excalidraw.label', hint: 'loading.excalidraw.hint' },
+  epub: { label: 'loading.epub.label', hint: 'loading.epub.hint' },
+  umd: { label: 'loading.umd.label', hint: 'loading.umd.hint' },
+  png: { label: 'loading.image.label', hint: 'loading.image.hint' },
+  jpg: { label: 'loading.image.label', hint: 'loading.image.hint' },
+  jpeg: { label: 'loading.image.label', hint: 'loading.image.hint' },
+  gif: { label: 'loading.image.label', hint: 'loading.image.hint' },
+  webp: { label: 'loading.image.label', hint: 'loading.image.hint' },
+  svg: { label: 'loading.image.label', hint: 'loading.image.hint' },
+  bmp: { label: 'loading.image.label', hint: 'loading.image.hint' },
+  mp4: { label: 'loading.video.label', hint: 'loading.video.hint' },
+  mov: { label: 'loading.video.label', hint: 'loading.video.hint' },
+  avi: { label: 'loading.video.label', hint: 'loading.video.hint' },
+  webm: { label: 'loading.video.label', hint: 'loading.video.hint' },
+  m4v: { label: 'loading.video.label', hint: 'loading.video.hint' },
+  mp3: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  mpeg: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  wav: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  ogg: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  oga: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  opus: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  m4a: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  aac: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  flac: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+  weba: { label: 'loading.audio.label', hint: 'loading.audio.hint' },
+};
+
 /**
  * 根据扩展名返回统一的加载主题。
  * 这样不同预览器可以复用同一套视觉语义，避免颜色、图标和文案各写一份。
  */
-export const resolveFileViewerLoadingTheme = (extend = ''): FileViewerLoadingTheme => {
+const localizeFileViewerLoadingTheme = (
+  theme: FileViewerLoadingTheme,
+  extend = '',
+  i18n?: FileViewerI18nInput
+): FileViewerLoadingTheme => {
   const normalized = extend.trim().toLowerCase();
-  return FILE_VIEWER_LOADING_THEME_MAP[normalized] || FALLBACK_FILE_VIEWER_LOADING_THEME;
+  const keys = FILE_VIEWER_LOADING_COPY_KEYS[normalized] || {
+    label: 'loading.generic.label',
+    hint: 'loading.generic.hint',
+  } satisfies { label: FileViewerMessageKey; hint: FileViewerMessageKey };
+  return {
+    ...theme,
+    label: translateFileViewerMessage(i18n, keys.label),
+    hint: translateFileViewerMessage(i18n, keys.hint),
+  };
+};
+
+export const resolveFileViewerLoadingTheme = (extend = '', i18n?: FileViewerI18nInput): FileViewerLoadingTheme => {
+  const normalized = extend.trim().toLowerCase();
+  return localizeFileViewerLoadingTheme(
+    FILE_VIEWER_LOADING_THEME_MAP[normalized] || FALLBACK_FILE_VIEWER_LOADING_THEME,
+    normalized,
+    i18n
+  );
 };
 
 export const createFileViewerLoadingStyleVars = (theme: FileViewerLoadingTheme) => ({
@@ -418,8 +498,8 @@ export const createFileViewerLoadingStyleVars = (theme: FileViewerLoadingTheme) 
   '--viewer-soft': theme.soft,
 });
 
-export const createFileViewerLoadingState = (extend = ''): FileViewerLoadingState => {
-  const theme = resolveFileViewerLoadingTheme(extend);
+export const createFileViewerLoadingState = (extend = '', i18n?: FileViewerI18nInput): FileViewerLoadingState => {
+  const theme = resolveFileViewerLoadingTheme(extend, i18n);
   return {
     loading: false,
     error: '',
@@ -489,6 +569,9 @@ export const createFileViewerLoadingControllerActionHandlers = <
         extension: nextExtend,
       });
     },
+    setI18n(nextI18n?: FileViewerI18nInput) {
+      return runFileViewerLoadingControllerAction(target, () => controller.setI18n(nextI18n));
+    },
     startLoading(nextMessage: string) {
       return runFileViewerLoadingControllerAction(target, () => controller.startLoading(nextMessage));
     },
@@ -517,11 +600,17 @@ export const createFileViewerLoadingControllerActionHandlers = <
  * 统一管理加载、错误、文案和主题色。
  * wrapper 只负责把这个加载状态映射到各自框架的响应式系统。
  */
-export const createFileViewerLoadingController = (extend = ''): FileViewerLoadingController => {
-  const state = createFileViewerLoadingState(extend);
+export const createFileViewerLoadingController = (
+  extend = '',
+  initialI18n?: FileViewerI18nInput
+): FileViewerLoadingController => {
+  let currentExtend = extend;
+  let currentI18n = initialI18n;
+  const state = createFileViewerLoadingState(extend, initialI18n);
 
   const updateTheme = (nextExtend: string) => {
-    state.theme = resolveFileViewerLoadingTheme(nextExtend);
+    currentExtend = nextExtend;
+    state.theme = resolveFileViewerLoadingTheme(nextExtend, currentI18n);
     state.styleVars = createFileViewerLoadingStyleVars(state.theme);
   };
 
@@ -529,6 +618,11 @@ export const createFileViewerLoadingController = (extend = ''): FileViewerLoadin
     state,
     setExtension(nextExtend = '') {
       updateTheme(nextExtend);
+      return cloneFileViewerLoadingState(state);
+    },
+    setI18n(nextI18n?: FileViewerI18nInput) {
+      currentI18n = nextI18n;
+      updateTheme(currentExtend);
       return cloneFileViewerLoadingState(state);
     },
     startLoading(nextMessage: string) {
