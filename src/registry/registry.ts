@@ -9,6 +9,44 @@ import type {
   RendererRegistry,
 } from '../contracts/types';
 
+const autoRendererBucketKey = '__flyfish_file_viewer_auto_renderer_presets__';
+
+export interface RegisterFileViewerAutoRendererPresetOptions {
+  /**
+   * Stable key used to replace an existing auto preset registration.
+   */
+  id?: string;
+  /**
+   * Package name is useful for diagnostics and gives generated integrations a
+   * deterministic id even when the preset input is an array.
+   */
+  packageName?: string;
+}
+
+interface FileViewerAutoRendererPresetEntry<Handler = unknown> {
+  id: string;
+  packageName?: string;
+  input: FileViewerRendererPluginInput<Handler>;
+}
+
+interface FileViewerAutoRendererBucket {
+  version: number;
+  presets: Map<string, FileViewerAutoRendererPresetEntry>;
+}
+
+const getAutoRendererBucket = (): FileViewerAutoRendererBucket => {
+  const host = globalThis as typeof globalThis & {
+    [autoRendererBucketKey]?: FileViewerAutoRendererBucket;
+  };
+  if (!host[autoRendererBucketKey]) {
+    host[autoRendererBucketKey] = {
+      version: 0,
+      presets: new Map(),
+    };
+  }
+  return host[autoRendererBucketKey];
+};
+
 const normalizeDefinition = (definition: RendererDefinition): RendererDefinition => ({
   ...definition,
   extensions: definition.extensions.map(normalizeFileExtension),
@@ -106,6 +144,71 @@ export const collectFileViewerRendererPlugins = <Handler = unknown>(
 
   return [input as FileViewerRendererPlugin<Handler>];
 };
+
+const resolveAutoRendererPresetId = <Handler>(
+  input: FileViewerRendererPluginInput<Handler>,
+  options: RegisterFileViewerAutoRendererPresetOptions = {}
+) => {
+  if (options.id) {
+    return options.id;
+  }
+  if (options.packageName) {
+    return options.packageName;
+  }
+  if (isRendererPreset(input)) {
+    return input.id;
+  }
+  if (!Array.isArray(input) && input && typeof input === 'object' && 'id' in input) {
+    return String((input as FileViewerRendererPlugin<Handler>).id);
+  }
+  return 'file-viewer-auto-renderers';
+};
+
+export const registerFileViewerAutoRendererPreset = <Handler = unknown>(
+  input: FileViewerRendererPluginInput<Handler>,
+  options: RegisterFileViewerAutoRendererPresetOptions = {}
+) => {
+  const bucket = getAutoRendererBucket();
+  const id = resolveAutoRendererPresetId(input, options);
+  const existing = bucket.presets.get(id);
+  if (existing?.input !== input || existing.packageName !== options.packageName) {
+    bucket.presets.set(id, {
+      id,
+      packageName: options.packageName,
+      input: input as FileViewerRendererPluginInput,
+    });
+    bucket.version += 1;
+  }
+
+  return () => {
+    unregisterFileViewerAutoRendererPreset(id);
+  };
+};
+
+export const unregisterFileViewerAutoRendererPreset = (id: string) => {
+  const bucket = getAutoRendererBucket();
+  const removed = bucket.presets.delete(id);
+  if (removed) {
+    bucket.version += 1;
+  }
+  return removed;
+};
+
+export const clearFileViewerAutoRendererPresets = () => {
+  const bucket = getAutoRendererBucket();
+  if (!bucket.presets.size) {
+    return;
+  }
+  bucket.presets.clear();
+  bucket.version += 1;
+};
+
+export const listFileViewerAutoRendererPresets = <Handler = unknown>() =>
+  Array.from(getAutoRendererBucket().presets.values()).map(
+    entry => entry.input as FileViewerRendererPluginInput<Handler>
+  );
+
+export const getFileViewerAutoRendererPresetVersion = () => getAutoRendererBucket().version;
 
 export const installFileViewerRendererPlugins = async <Handler = unknown>({
   registry,

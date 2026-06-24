@@ -32,7 +32,9 @@ import {
 import {
   collectFileViewerRendererPlugins,
   createRendererRegistry,
+  getFileViewerAutoRendererPresetVersion,
   installFileViewerRendererPlugins,
+  listFileViewerAutoRendererPresets,
 } from '../registry/registry';
 import {
   createFileRenderHandlerLoader,
@@ -57,6 +59,7 @@ import type {
   FileViewerOperationType,
   FileViewerOptions,
   FileViewerPrintOptions,
+  FileViewerRendererPluginInput,
   FileViewerSource,
   NormalizedFileViewerSource,
   RendererRegistry,
@@ -110,6 +113,17 @@ const createBaseRendererRegistry = (
   }).registry;
 };
 
+const resolveAutoRenderersEnabled = (options: FileViewerOptions) => {
+  const setting = options.autoRenderers;
+  if (typeof setting === 'boolean') {
+    return setting;
+  }
+  if (setting?.enabled !== undefined) {
+    return setting.enabled;
+  }
+  return (options.rendererMode || 'extend') !== 'replace';
+};
+
 const renderMissingRendererState = (container: HTMLElement, type: string) => {
   const documentRef = container.ownerDocument;
   const state = createFileViewerUnsupportedState(type);
@@ -150,6 +164,8 @@ export const createViewer = (
   let installedRendererInput: FileViewerOptions['renderers'] | undefined = undefined;
   let installedRendererMode = options.rendererMode || 'extend';
   let installedBuiltinRenderers = options.builtinRenderers || 'all';
+  let installedAutoRenderersEnabled = resolveAutoRenderersEnabled(options);
+  let installedAutoRendererVersion = -1;
   let currentSource: NormalizedFileViewerSource | null = null;
   const renderSurfaceState = createFileViewerRenderSurfaceState<RendererSession>();
   const requestScope = createFileViewerRequestScope();
@@ -162,10 +178,16 @@ export const createViewer = (
     const nextMode = options.rendererMode || 'extend';
     const nextRendererInput = options.renderers;
     const nextBuiltinRenderers = options.builtinRenderers || 'all';
+    const nextAutoRenderersEnabled = resolveAutoRenderersEnabled(options);
+    const nextAutoRendererVersion = nextAutoRenderersEnabled
+      ? getFileViewerAutoRendererPresetVersion()
+      : 0;
     if (
       nextMode === installedRendererMode &&
       nextRendererInput === installedRendererInput &&
-      nextBuiltinRenderers === installedBuiltinRenderers
+      nextBuiltinRenderers === installedBuiltinRenderers &&
+      nextAutoRenderersEnabled === installedAutoRenderersEnabled &&
+      nextAutoRendererVersion === installedAutoRendererVersion
     ) {
       return;
     }
@@ -174,8 +196,17 @@ export const createViewer = (
     installedRendererMode = nextMode;
     installedRendererInput = nextRendererInput;
     installedBuiltinRenderers = nextBuiltinRenderers;
+    installedAutoRenderersEnabled = nextAutoRenderersEnabled;
+    installedAutoRendererVersion = nextAutoRendererVersion;
 
-    const plugins = collectFileViewerRendererPlugins(nextRendererInput);
+    const rendererInputs: FileViewerRendererPluginInput<FileRenderHandler>[] = [];
+    if (nextAutoRenderersEnabled) {
+      rendererInputs.push(...listFileViewerAutoRendererPresets<FileRenderHandler>());
+    }
+    if (nextRendererInput) {
+      rendererInputs.push(nextRendererInput as FileViewerRendererPluginInput<FileRenderHandler>);
+    }
+    const plugins = collectFileViewerRendererPlugins<FileRenderHandler>(rendererInputs);
     if (!plugins.length) {
       return;
     }

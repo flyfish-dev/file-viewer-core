@@ -194,9 +194,17 @@ export type {
   ResolveFileViewerOperationActionErrorMessageInput,
 } from './viewer/operations';
 export {
+  clearFileViewerAutoRendererPresets,
   collectFileViewerRendererPlugins,
   createRendererRegistry,
+  getFileViewerAutoRendererPresetVersion,
   installFileViewerRendererPlugins,
+  listFileViewerAutoRendererPresets,
+  registerFileViewerAutoRendererPreset,
+  unregisterFileViewerAutoRendererPreset,
+} from './registry/registry';
+export type {
+  RegisterFileViewerAutoRendererPresetOptions,
 } from './registry/registry';
 export {
   CORE_LITE_RENDERER_IDS,
@@ -707,9 +715,11 @@ export {
   createFileViewerUnsupportedState,
   formatFileViewerErrorMessage,
   normalizeFileViewerErrorMessage,
+  resolveFileViewerRendererInstallHint,
 } from './viewer/state';
 export type {
   FileViewerErrorMessageFormatter,
+  FileViewerRendererInstallHint,
 } from './viewer/state';
 export {
   buildFileViewerWatermarkBackgroundImage,

@@ -264,6 +264,16 @@ export interface FileViewerCadOptions {
 export type FileViewerRendererMode = 'extend' | 'replace';
 export type FileViewerBuiltinRendererPreset = 'all' | 'lite' | 'none';
 
+export interface FileViewerAutoRendererOptions {
+  /**
+   * Uses renderer presets registered by build tooling or preset side-effect imports.
+   *
+   * Defaults to true in `extend` mode and false in `replace` mode so applications
+   * can keep a strict hand-picked renderer registry when needed.
+   */
+  enabled?: boolean;
+}
+
 export interface FileViewerSearchOptions {
   enabled?: boolean;
   caseSensitive?: boolean;
@@ -301,6 +311,12 @@ export interface FileViewerOptions {
    * allowing renderer plugins or presets to be installed through `renderers`.
    */
   builtinRenderers?: FileViewerBuiltinRendererPreset;
+  /**
+   * Enables renderer presets that were auto-registered by `@file-viewer/vite-plugin`
+   * or by explicitly importing a preset package. Set to false when a product wants
+   * total manual control through `renderers`.
+   */
+  autoRenderers?: boolean | FileViewerAutoRendererOptions;
   renderers?: FileViewerRendererPluginInput;
   watermark?: boolean | FileViewerWatermarkOptions;
   toolbar?: boolean | FileViewerToolbarOptions;
