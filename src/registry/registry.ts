@@ -4,6 +4,8 @@ import type {
   FileViewerRendererHandlerRegistration,
   FileViewerRendererPluginInput,
   FileViewerRendererPlugin,
+  FileViewerRendererPresetInput,
+  FileViewerRendererPresetName,
   FileViewerRendererPreset,
   RendererDefinition,
   RendererRegistry,
@@ -23,7 +25,7 @@ export interface RegisterFileViewerAutoRendererPresetOptions {
   packageName?: string;
 }
 
-interface FileViewerAutoRendererPresetEntry<Handler = unknown> {
+export interface FileViewerAutoRendererPresetEntry<Handler = unknown> {
   id: string;
   packageName?: string;
   input: FileViewerRendererPluginInput<Handler>;
@@ -208,7 +210,69 @@ export const listFileViewerAutoRendererPresets = <Handler = unknown>() =>
     entry => entry.input as FileViewerRendererPluginInput<Handler>
   );
 
+export const listFileViewerAutoRendererPresetEntries = <Handler = unknown>() =>
+  Array.from(getAutoRendererBucket().presets.values()).map(entry => ({
+    ...entry,
+    input: entry.input as FileViewerRendererPluginInput<Handler>,
+  }));
+
+export const findFileViewerAutoRendererPreset = <Handler = unknown>(
+  id: FileViewerRendererPresetName | string
+) => {
+  const bucket = getAutoRendererBucket();
+  const direct = bucket.presets.get(id);
+  if (direct) {
+    return direct.input as FileViewerRendererPluginInput<Handler>;
+  }
+
+  const packageSuffix = id.startsWith('@file-viewer/preset-')
+    ? id
+    : `@file-viewer/preset-${id}`;
+  return Array.from(bucket.presets.values()).find(entry =>
+    entry.packageName === packageSuffix ||
+    entry.id === packageSuffix
+  )?.input as FileViewerRendererPluginInput<Handler> | undefined;
+};
+
 export const getFileViewerAutoRendererPresetVersion = () => getAutoRendererBucket().version;
+
+export const hasFileViewerRendererPresetName = (
+  input?: FileViewerRendererPresetInput | null
+): boolean => {
+  if (!input) {
+    return false;
+  }
+  if (typeof input === 'string') {
+    return true;
+  }
+  if (Array.isArray(input)) {
+    return input.some(item => hasFileViewerRendererPresetName(item));
+  }
+  return false;
+};
+
+/**
+ * Normalizes `options.preset` / `options.presets` into renderer plugin inputs.
+ *
+ * Passing a preset object is the most portable integration style because it
+ * works in any bundler. String selectors intentionally only resolve presets
+ * that are already registered by a side-effect import or by build tooling.
+ */
+export const resolveFileViewerRendererPresetInputs = <Handler = unknown>(
+  input?: FileViewerRendererPresetInput<Handler> | null
+): FileViewerRendererPluginInput<Handler>[] => {
+  if (!input) {
+    return [];
+  }
+  if (typeof input === 'string') {
+    const preset = findFileViewerAutoRendererPreset<Handler>(input);
+    return preset ? [preset] : [];
+  }
+  if (Array.isArray(input)) {
+    return input.flatMap(item => resolveFileViewerRendererPresetInputs<Handler>(item));
+  }
+  return [input as FileViewerRendererPluginInput<Handler>];
+};
 
 export const installFileViewerRendererPlugins = async <Handler = unknown>({
   registry,

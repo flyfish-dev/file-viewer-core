@@ -212,13 +212,18 @@ export {
   clearFileViewerAutoRendererPresets,
   collectFileViewerRendererPlugins,
   createRendererRegistry,
+  findFileViewerAutoRendererPreset,
   getFileViewerAutoRendererPresetVersion,
+  hasFileViewerRendererPresetName,
   installFileViewerRendererPlugins,
+  listFileViewerAutoRendererPresetEntries,
   listFileViewerAutoRendererPresets,
   registerFileViewerAutoRendererPreset,
+  resolveFileViewerRendererPresetInputs,
   unregisterFileViewerAutoRendererPreset,
 } from './registry/registry';
 export type {
+  FileViewerAutoRendererPresetEntry,
   RegisterFileViewerAutoRendererPresetOptions,
 } from './registry/registry';
 export {
@@ -1008,6 +1013,8 @@ export type {
   FileViewerRendererInstallContext,
   FileViewerRendererPlugin,
   FileViewerRendererPluginInput,
+  FileViewerRendererPresetInput,
+  FileViewerRendererPresetName,
   FileViewerRendererPreset,
   FileViewerSearchMatch,
   FileViewerSearchOptions,

@@ -33,8 +33,10 @@ import {
   collectFileViewerRendererPlugins,
   createRendererRegistry,
   getFileViewerAutoRendererPresetVersion,
+  hasFileViewerRendererPresetName,
   installFileViewerRendererPlugins,
   listFileViewerAutoRendererPresets,
+  resolveFileViewerRendererPresetInputs,
 } from '../registry/registry';
 import {
   createFileRenderHandlerLoader,
@@ -165,6 +167,8 @@ export const createViewer = (
   let options = createOptions.options || {};
   let registry = createBaseRendererRegistry(createOptions, options);
   let installedRendererInput: FileViewerOptions['renderers'] | undefined = undefined;
+  let installedPresetInput: FileViewerOptions['preset'] | undefined = undefined;
+  let installedPresetsInput: FileViewerOptions['presets'] | undefined = undefined;
   let installedRendererMode = options.rendererMode || 'extend';
   let installedBuiltinRenderers = options.builtinRenderers || 'all';
   let installedAutoRenderersEnabled = resolveAutoRenderersEnabled(options);
@@ -180,14 +184,21 @@ export const createViewer = (
   const ensureRendererPluginsInstalled = async () => {
     const nextMode = options.rendererMode || 'extend';
     const nextRendererInput = options.renderers;
+    const nextPresetInput = options.preset;
+    const nextPresetsInput = options.presets;
     const nextBuiltinRenderers = options.builtinRenderers || 'all';
     const nextAutoRenderersEnabled = resolveAutoRenderersEnabled(options);
-    const nextAutoRendererVersion = nextAutoRenderersEnabled
+    const needsAutoPresetBucket = nextAutoRenderersEnabled ||
+      hasFileViewerRendererPresetName(nextPresetInput) ||
+      hasFileViewerRendererPresetName(nextPresetsInput);
+    const nextAutoRendererVersion = needsAutoPresetBucket
       ? getFileViewerAutoRendererPresetVersion()
       : 0;
     if (
       nextMode === installedRendererMode &&
       nextRendererInput === installedRendererInput &&
+      nextPresetInput === installedPresetInput &&
+      nextPresetsInput === installedPresetsInput &&
       nextBuiltinRenderers === installedBuiltinRenderers &&
       nextAutoRenderersEnabled === installedAutoRenderersEnabled &&
       nextAutoRendererVersion === installedAutoRendererVersion
@@ -198,6 +209,8 @@ export const createViewer = (
     registry = createBaseRendererRegistry(createOptions, options);
     installedRendererMode = nextMode;
     installedRendererInput = nextRendererInput;
+    installedPresetInput = nextPresetInput;
+    installedPresetsInput = nextPresetsInput;
     installedBuiltinRenderers = nextBuiltinRenderers;
     installedAutoRenderersEnabled = nextAutoRenderersEnabled;
     installedAutoRendererVersion = nextAutoRendererVersion;
@@ -206,6 +219,10 @@ export const createViewer = (
     if (nextAutoRenderersEnabled) {
       rendererInputs.push(...listFileViewerAutoRendererPresets<FileRenderHandler>());
     }
+    rendererInputs.push(
+      ...resolveFileViewerRendererPresetInputs<FileRenderHandler>(nextPresetInput),
+      ...resolveFileViewerRendererPresetInputs<FileRenderHandler>(nextPresetsInput)
+    );
     if (nextRendererInput) {
       rendererInputs.push(nextRendererInput as FileViewerRendererPluginInput<FileRenderHandler>);
     }

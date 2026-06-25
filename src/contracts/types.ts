@@ -632,6 +632,7 @@ export interface FileViewerCadOptions {
 
 export type FileViewerRendererMode = 'extend' | 'replace';
 export type FileViewerBuiltinRendererPreset = 'all' | 'lite' | 'none';
+export type FileViewerRendererPresetName = 'all' | 'lite' | 'office' | 'engineering';
 
 export interface FileViewerAutoRendererOptions {
   /**
@@ -675,20 +676,22 @@ export interface FileViewerOptions {
   messages?: FileViewerMessages;
   i18n?: FileViewerI18nOptions;
   /**
-   * Optional renderer plugins or presets installed into this viewer instance.
+   * Controls how explicit renderer packages or presets are merged into this
+   * viewer instance.
    *
-   * `extend` mode keeps the bundled renderer matrix and appends custom
-   * renderers. `replace` mode starts from an empty registry so applications can
-   * build a truly lightweight viewer from selected renderer packages.
+   * `extend` mode keeps the configured built-in baseline and appends explicit
+   * renderers. `replace` mode starts from an empty registry, so `preset` or
+   * `renderers` fully define the active capability set.
    */
   rendererMode?: FileViewerRendererMode;
   /**
-   * Controls which built-in browser renderers are registered before custom
-   * plugins are installed.
+   * Advanced baseline switch for built-in browser renderers.
    *
-   * `all` preserves the historical full matrix, `lite` keeps only low-cost
-   * web-native previewers, and `none` starts from an empty registry while still
-   * allowing renderer plugins or presets to be installed through `renderers`.
+   * Most applications can ignore this option and use `preset` / `renderers`
+   * with `rendererMode:'replace'`. Keep it for compatibility or very strict
+   * registry control: `all` preserves the historical full baseline, `lite`
+   * keeps only low-cost web-native previewers, and `none` starts from an empty
+   * built-in baseline while still allowing explicit renderer assembly.
    */
   builtinRenderers?: FileViewerBuiltinRendererPreset;
   /**
@@ -697,6 +700,28 @@ export interface FileViewerOptions {
    * total manual control through `renderers`.
    */
   autoRenderers?: boolean | FileViewerAutoRendererOptions;
+  /**
+   * Product-shaped renderer preset or preset list installed into this viewer
+   * instance.
+   *
+   * This is the bundler-neutral path for Webpack, Rspack, Rollup, Umi,
+   * legacy script builds, and any environment that should not depend on the
+   * Vite virtual module. Import one or more preset packages and pass them here:
+   *
+   * `const officePreset = await import(theInstalledOfficePresetPackage)`
+   * `options: { preset: officePreset.default }`
+   * `options: { preset: [officePreset.default, engineeringPreset.default] }`
+   *
+   * The string form (`'office'`, `'all'`, etc.) selects a preset that has
+   * already been registered by a preset side-effect import or by
+   * `@file-viewer/vite-plugin`.
+   */
+  preset?: FileViewerRendererPresetInput;
+  /**
+   * @deprecated Use `preset: [officePreset, engineeringPreset]` instead. This
+   * alias is kept only for compatibility with early 2.x integration drafts.
+   */
+  presets?: FileViewerRendererPresetInput;
   renderers?: FileViewerRendererPluginInput;
   watermark?: boolean | FileViewerWatermarkOptions;
   toolbar?: boolean | FileViewerToolbarOptions;
@@ -1048,6 +1073,11 @@ export type FileViewerRendererPluginInput<Handler = FileRenderHandler> =
   | FileViewerRendererPlugin<Handler>
   | FileViewerRendererPreset<Handler>
   | readonly FileViewerRendererPluginInput<Handler>[];
+
+export type FileViewerRendererPresetInput<Handler = FileRenderHandler> =
+  | FileViewerRendererPresetName
+  | FileViewerRendererPluginInput<Handler>
+  | readonly FileViewerRendererPresetInput<Handler>[];
 
 export interface FileViewerInstance {
   readonly container: HTMLElement;
