@@ -96,12 +96,23 @@ export type FileViewerMessageKey =
   | 'archive.loading.readingDirectory'
   | 'archive.loading.readingDirectoryHint'
   | 'archive.search.placeholder'
+  | 'archive.sidebar.hide'
+  | 'archive.sidebar.show'
   | 'archive.preview.title'
   | 'archive.preview.chooseFile'
   | 'archive.preview.downloadFile'
   | 'archive.error.title'
   | 'archive.stats.summary'
   | 'archive.warning.encrypted'
+  | 'archive.password.title'
+  | 'archive.password.description'
+  | 'archive.password.placeholder'
+  | 'archive.password.invalid'
+  | 'archive.password.required'
+  | 'archive.password.cancel'
+  | 'archive.password.confirm'
+  | 'archive.error.passwordRequired'
+  | 'archive.error.encryptedRequiresWorker'
   | 'archive.empty.title'
   | 'archive.empty.message'
   | 'archive.loading.initializingCandidate'
@@ -445,6 +456,33 @@ export interface FileViewerArchiveOptions {
   cache?: boolean;
   maxArchiveSize?: number;
   maxEntryPreviewSize?: number;
+  /**
+   * Optional archive password. It is used for the first encrypted archive
+   * attempt; if it is wrong, the built-in password dialog or requestPassword
+   * callback can still ask the user for a replacement.
+   */
+  password?: string;
+  /**
+   * Custom password request hook for encrypted archives. Return a string to
+   * continue, or null/undefined to cancel and surface a friendly error.
+   */
+  requestPassword?: (
+    context: FileViewerArchivePasswordRequestContext
+  ) => string | null | undefined | Promise<string | null | undefined>;
+}
+
+export type FileViewerArchivePasswordRequestReason =
+  | 'encrypted'
+  | 'invalid-password'
+  | 'read-failed'
+  | 'extract-failed';
+
+export interface FileViewerArchivePasswordRequestContext {
+  filename: string;
+  entryName?: string;
+  attempt: number;
+  reason: FileViewerArchivePasswordRequestReason;
+  error?: unknown;
 }
 
 export interface FileViewerPdfOptions {

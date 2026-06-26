@@ -960,6 +960,8 @@ export type {
 } from './platform/worker';
 export type {
   FileViewerAiOptions,
+  FileViewerArchivePasswordRequestContext,
+  FileViewerArchivePasswordRequestReason,
   FileViewerArchiveOptions,
   FileViewerBeforeOperation,
   FileViewerCadDwfLineWeightMode,
