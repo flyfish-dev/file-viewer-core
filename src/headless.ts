@@ -406,6 +406,7 @@ export type {
   FileViewerEventType,
   FileViewerExportHtmlOptions,
   FileViewerFileRef,
+  FileViewerGeoOptions,
   FileViewerInstance,
   FileViewerLifecycleContext,
   FileViewerLifecycleHooks,

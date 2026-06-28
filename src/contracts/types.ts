@@ -314,6 +314,15 @@ export type FileViewerMessageKey =
   | 'geo.geometryTypes'
   | 'geo.aria'
   | 'geo.loading'
+  | 'geo.projection'
+  | 'geo.engine'
+  | 'geo.basemap'
+  | 'geo.basemap.offline'
+  | 'geo.basemap.custom'
+  | 'geo.engine.maplibre'
+  | 'geo.engine.svg'
+  | 'geo.error.projection'
+  | 'geo.action.fit'
   | 'model.toolbar.fit'
   | 'model.toolbar.rotate'
   | 'model.toolbar.wireframe'
@@ -525,6 +534,8 @@ export interface FileViewerSpreadsheetOptions {
   workerUrl?: string;
   /** 允许用户在 Excel / CSV / ODS 预览中拖拽表头边界调整列宽，默认关闭以保持历史行为。 */
   resizableColumns?: boolean;
+  /** 允许用户在 Excel / CSV / ODS 预览中拖拽行头边界调整行高，默认关闭以保持历史行为。 */
+  resizableRows?: boolean;
 }
 
 export type FileRenderExportMode = 'export' | 'print';
@@ -606,6 +617,89 @@ export interface FileViewerTypstOptions {
 
 export interface FileViewerDataOptions {
   sqlWasmUrl?: string;
+}
+
+export type FileViewerGeoBasemapPreset =
+  | 'none'
+  | 'offline'
+  | 'openfreemap'
+  | 'openfreemap-liberty'
+  | 'openfreemap-bright'
+  | 'openfreemap-positron'
+  | 'openfreemap-dark'
+  | 'openfreemap-fiord'
+  | 'osm-raster';
+
+export interface FileViewerGeoBasemapOptions {
+  /**
+   * `raster` uses XYZ/TMS image tiles. `vector-style` uses a MapLibre style
+   * object or URL, which is the best path for OpenFreeMap/OpenMapTiles stacks.
+   */
+  type?: 'raster' | 'vector-style';
+  /**
+   * Raster XYZ/TMS tile template, for example `/tiles/{z}/{x}/{y}.png`.
+   */
+  tileUrl?: string | string[];
+  /**
+   * MapLibre style JSON URL. Can point to a public source, an intranet mirror,
+   * or an offline static file distributed with the viewer.
+   */
+  styleUrl?: string;
+  /**
+   * Inline MapLibre style object for fully offline deployments.
+   */
+  style?: Record<string, unknown>;
+  /**
+   * Human-readable label shown in the geo preview details panel.
+   */
+  label?: string;
+  attribution?: string;
+  tileSize?: number;
+  minZoom?: number;
+  maxZoom?: number;
+  scheme?: 'xyz' | 'tms';
+  rasterOpacity?: number;
+}
+
+export interface FileViewerGeoOptions {
+  /**
+   * Source coordinate reference system. GeoJSON normally uses WGS84, but many
+   * business exports carry Web Mercator, GCJ-02, BD-09, or legacy CRS metadata.
+   *
+   * Accepts values such as `EPSG:4326`, `EPSG:3857`, `CRS:84`, `GCJ02`,
+   * `BD09`, or a proj4 definition string.
+   */
+  projection?: string;
+  /**
+   * Convenience raster tile URL. The renderer stays offline by default; setting
+   * this property opts into a raster basemap without requiring a full MapLibre
+   * style. Use `basemap` when you need a named preset or vector style URL.
+   */
+  tileUrl?: string | string[];
+  /**
+   * Basemap configuration. Defaults to an offline empty MapLibre style.
+   *
+   * Built-in presets are opt-in: `openfreemap-liberty` uses the public
+   * OpenFreeMap MapLibre style, and `osm-raster` uses the public OSM raster
+   * tiles for light usage or demos. Production systems should prefer a
+   * self-hosted or intranet style/tile URL.
+   */
+  basemap?: false | FileViewerGeoBasemapPreset | FileViewerGeoBasemapOptions;
+  /**
+   * Defaults to true. When no CRS is declared and coordinates exceed longitude
+   * or latitude ranges, the geo renderer treats Web Mercator-sized values as
+   * EPSG:3857 before rendering.
+   */
+  inferProjection?: boolean;
+  /**
+   * Defaults to true. Disable only for environments without reliable WebGL,
+   * where the SVG fallback is preferred.
+   */
+  preferMapEngine?: boolean;
+  /**
+   * Padding in CSS pixels when fitting the dataset bounds in the map viewport.
+   */
+  fitPadding?: number;
 }
 
 export interface FileViewerDrawingOptions {
@@ -770,6 +864,7 @@ export interface FileViewerOptions {
   docx?: FileViewerDocxOptions;
   spreadsheet?: FileViewerSpreadsheetOptions;
   typst?: FileViewerTypstOptions;
+  geo?: FileViewerGeoOptions;
   data?: FileViewerDataOptions;
   drawing?: FileViewerDrawingOptions;
   cad?: FileViewerCadOptions;
