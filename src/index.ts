@@ -1005,6 +1005,7 @@ export type {
   FileViewerOperationType,
   FileViewerOptions,
   FileViewerPdfOptions,
+  FileViewerPresentationOptions,
   FileViewerPrintOptions,
   FileViewerPublicApi,
   FileViewerRenderedInstance,

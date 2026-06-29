@@ -530,12 +530,19 @@ export interface FileViewerDocxOptions {
 }
 
 export interface FileViewerSpreadsheetOptions {
-  worker?: boolean;
+  worker?: boolean | 'auto';
   workerUrl?: string;
+  /** `worker: 'auto'` 时，大于该字节数的表格自动使用静态 Worker，默认 1MB。 */
+  workerAutoThreshold?: number;
   /** 允许用户在 Excel / CSV / ODS 预览中拖拽表头边界调整列宽，默认关闭以保持历史行为。 */
   resizableColumns?: boolean;
   /** 允许用户在 Excel / CSV / ODS 预览中拖拽行头边界调整行高，默认关闭以保持历史行为。 */
   resizableRows?: boolean;
+}
+
+export interface FileViewerPresentationOptions {
+  workerUrl?: string | URL;
+  workerType?: WorkerType;
 }
 
 export type FileRenderExportMode = 'export' | 'print';
@@ -862,6 +869,7 @@ export interface FileViewerOptions {
   archive?: FileViewerArchiveOptions;
   pdf?: FileViewerPdfOptions;
   docx?: FileViewerDocxOptions;
+  presentation?: FileViewerPresentationOptions;
   spreadsheet?: FileViewerSpreadsheetOptions;
   typst?: FileViewerTypstOptions;
   geo?: FileViewerGeoOptions;

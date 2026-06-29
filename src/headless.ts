@@ -422,6 +422,7 @@ export type {
   FileViewerOperationType,
   FileViewerOptions,
   FileViewerPdfOptions,
+  FileViewerPresentationOptions,
   FileViewerPrintOptions,
   FileViewerPublicApi,
   FileViewerRenderStateKind,
