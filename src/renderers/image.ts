@@ -75,16 +75,8 @@ const resolveImageUrl = async (buffer: ArrayBuffer, type?: string) => {
   return readBlobDataUrl(new Blob([buffer], { type: getImageBlobType(normalizedType) }));
 };
 
-const clampZoom = (value: number) => {
-  return Math.min(5, Math.max(0.1, Number(value.toFixed(2))));
-};
-
-const applyImageZoom = (image: HTMLImageElement, viewportHeight: number, zoom: number) => {
-  if (viewportHeight > 0) {
-    image.style.height = `${Math.max(1, Math.round(viewportHeight * zoom))}px`;
-    return;
-  }
-  image.style.height = `${zoom * 100}%`;
+const roundImageScale = (value: number) => {
+  return Number(value.toFixed(3));
 };
 
 const createLightbox = (src: string) => {
@@ -135,7 +127,9 @@ export default async function renderImage(
   type?: string
 ): Promise<FileViewerRenderedInstance> {
   const src = await resolveImageUrl(buffer, type);
-  let zoom = 1;
+  let userZoom = 1;
+  let fitScale = 1;
+  let currentScale = 1;
   let viewportHeight = 0;
   const zoomEmitter = createZoomChangeEmitter();
 
@@ -157,35 +151,71 @@ export default async function renderImage(
   image.addEventListener('click', openLightbox);
   document.body.append(lightbox.element);
 
+  const getMinScale = () => Math.min(0.1, fitScale || 0.1);
+  const clampScale = (value: number) => {
+    const minScale = getMinScale();
+    return Math.min(5, Math.max(minScale, roundImageScale(value)));
+  };
+  const computeFitScale = () => {
+    const naturalWidth = image.naturalWidth || 0;
+    const naturalHeight = image.naturalHeight || 0;
+    if (!naturalWidth || !naturalHeight) {
+      return 1;
+    }
+
+    const availableWidth = Math.max((root.clientWidth || 0) - 48, 1);
+    const availableHeight = Math.max((root.clientHeight || viewportHeight || 0) - 48, 1);
+    return Math.min(1, availableWidth / naturalWidth, availableHeight / naturalHeight);
+  };
+  const applyImageZoom = () => {
+    fitScale = computeFitScale();
+    currentScale = clampScale(fitScale * userZoom);
+    if (image.naturalWidth && image.naturalHeight) {
+      image.style.width = `${Math.max(1, Math.round(image.naturalWidth * currentScale))}px`;
+      image.style.height = `${Math.max(1, Math.round(image.naturalHeight * currentScale))}px`;
+      return;
+    }
+    image.style.width = 'auto';
+    image.style.height = viewportHeight > 0
+      ? `${Math.max(1, Math.round(viewportHeight * userZoom))}px`
+      : `${userZoom * 100}%`;
+  };
   const updateViewportSize = () => {
     viewportHeight = root.clientHeight || 0;
-    applyImageZoom(image, viewportHeight, zoom);
+    applyImageZoom();
     zoomEmitter.emit();
   };
   const resizeObserver = new ResizeObserver(updateViewportSize);
   resizeObserver.observe(root);
+  image.addEventListener('load', updateViewportSize);
 
   const getZoomState = (): FileViewerZoomState => ({
-    scale: zoom,
-    label: `${Math.round(zoom * 100)}%`,
-    canZoomIn: zoom < 5,
-    canZoomOut: zoom > 0.1,
-    canReset: zoom !== 1,
-    minScale: 0.1,
+    scale: currentScale,
+    label: `${Math.round(currentScale * 100)}%`,
+    canZoomIn: currentScale < 5,
+    canZoomOut: currentScale > getMinScale(),
+    canReset: Math.abs(userZoom - 1) > 0.001,
+    minScale: getMinScale(),
     maxScale: 5,
   });
 
   const setZoom = (scale: number) => {
-    zoom = clampZoom(scale);
-    applyImageZoom(image, viewportHeight, zoom);
+    const nextScale = clampScale(scale);
+    userZoom = nextScale / Math.max(fitScale, 0.001);
+    applyImageZoom();
     zoomEmitter.emit();
     return getZoomState();
   };
 
   registerFileViewerZoomProvider(root, {
-    zoomIn: () => setZoom(zoom + 0.15),
-    zoomOut: () => setZoom(zoom - 0.15),
-    resetZoom: () => setZoom(1),
+    zoomIn: () => setZoom(currentScale + 0.15),
+    zoomOut: () => setZoom(currentScale - 0.15),
+    resetZoom: () => {
+      userZoom = 1;
+      applyImageZoom();
+      zoomEmitter.emit();
+      return getZoomState();
+    },
     setZoom,
     getState: getZoomState,
     subscribe: zoomEmitter.subscribe,
@@ -199,6 +229,7 @@ export default async function renderImage(
     unmount() {
       unregisterFileViewerZoomProvider(root);
       resizeObserver.disconnect();
+      image.removeEventListener('load', updateViewportSize);
       image.removeEventListener('click', openLightbox);
       lightbox.destroy();
       target.replaceChildren();

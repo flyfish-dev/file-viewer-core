@@ -578,6 +578,7 @@ export interface RunFileViewerPreviewComponentUnmountInput {
   onCancelPreview?: (reason: FileViewerLifecycleContext['reason']) => void;
   onResetLoading?: () => void;
   onStopZoomObserver?: () => void;
+  onStopViewStateObserver?: () => void;
 }
 
 export interface FileViewerPreviewComponentUnmountState {
@@ -858,10 +859,12 @@ export const runFileViewerPreviewComponentUnmount = ({
   onCancelPreview,
   onResetLoading,
   onStopZoomObserver,
+  onStopViewStateObserver,
 }: RunFileViewerPreviewComponentUnmountInput = {}): FileViewerPreviewComponentUnmountState => {
   onCancelPreview?.(reason);
   onResetLoading?.();
   onStopZoomObserver?.();
+  onStopViewStateObserver?.();
 
   return {
     reason,

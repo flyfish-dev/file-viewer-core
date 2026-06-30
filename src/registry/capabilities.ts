@@ -1,6 +1,12 @@
 import { ARCHIVE_EXTENSIONS, IMAGE_EXTENSIONS, MODEL_EXTENSIONS, TEXT_EXTENSIONS } from './formats';
 import { normalizeFileExtension } from '../source';
-import type { FileRenderExportAdapter, FileViewerOperationAvailability, RendererDefinition, RendererSession } from '../contracts/types';
+import type {
+  FileRenderExportAdapter,
+  FileViewerOperationAvailability,
+  FileViewerZoomState,
+  RendererDefinition,
+  RendererSession,
+} from '../contracts/types';
 
 export const DEFAULT_OPERATION_AVAILABILITY: FileViewerOperationAvailability = Object.freeze({
   download: false,
@@ -37,6 +43,20 @@ export const getRendererAvailability = (
   return {
     ...base,
     ...session?.getAvailability?.(),
+  };
+};
+
+export const applyFileViewerZoomAvailability = (
+  availability: FileViewerOperationAvailability,
+  zoomState: FileViewerZoomState
+): FileViewerOperationAvailability => {
+  const zoom = availability.zoom && (zoomState.canZoomIn || zoomState.canZoomOut || zoomState.canReset);
+  return {
+    ...availability,
+    zoom,
+    zoomIn: zoom && zoomState.canZoomIn,
+    zoomOut: zoom && zoomState.canZoomOut,
+    zoomReset: zoom && zoomState.canReset,
   };
 };
 

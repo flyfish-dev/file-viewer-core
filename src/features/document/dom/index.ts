@@ -8,14 +8,18 @@ export {
 } from './anchors';
 export {
   findFileViewerSearchProvider,
+  findFileViewerViewStateProvider,
   findFileViewerZoomProvider,
   registerFileViewerSearchProvider,
+  registerFileViewerViewStateProvider,
   registerFileViewerZoomProvider,
   unregisterFileViewerSearchProvider,
+  unregisterFileViewerViewStateProvider,
   unregisterFileViewerZoomProvider,
 } from './providers';
 export type {
   FileViewerSearchProviderHost,
+  FileViewerViewStateProviderHost,
   FileViewerZoomProviderHost,
 } from './providers';
 export {

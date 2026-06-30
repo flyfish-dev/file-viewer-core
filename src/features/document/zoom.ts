@@ -15,6 +15,7 @@ export interface CreateFileViewerZoomControllerOptions {
   root: () => HTMLElement | null | undefined;
   enabled?: () => boolean;
   beforeZoom?: (operation: FileViewerZoomOperation) => Promise<boolean> | boolean;
+  onChange?: (state: FileViewerZoomState) => void;
 }
 
 export type MutableFileViewerZoomState = FileViewerZoomState;
@@ -186,11 +187,17 @@ export const createFileViewerZoomController = ({
   root,
   enabled,
   beforeZoom,
+  onChange,
 }: CreateFileViewerZoomControllerOptions): FileViewerZoomController => {
   let provider: FileViewerZoomProvider | null = null;
   let unsubscribe: (() => void) | null = null;
   let observer: MutationObserver | null = null;
+  let runningAction = false;
   const state = createFileViewerZoomState();
+
+  const notifyChange = () => {
+    onChange?.(cloneFileViewerZoomState(state));
+  };
 
   const clearProvider = () => {
     unsubscribe?.();
@@ -211,6 +218,9 @@ export const createFileViewerZoomController = ({
       provider = nextProvider;
       unsubscribe = nextProvider?.subscribe?.(() => {
         applyFileViewerZoomState(state, nextProvider.getState());
+        if (!runningAction) {
+          notifyChange();
+        }
       }) || null;
     }
     applyFileViewerZoomState(state, nextProvider?.getState?.() || null);
@@ -235,9 +245,14 @@ export const createFileViewerZoomController = ({
       return cloneFileViewerZoomState(state);
     }
 
-    const nextState = await action(nextProvider);
-    applyFileViewerZoomState(state, nextState || nextProvider.getState());
-    return cloneFileViewerZoomState(state);
+    runningAction = true;
+    try {
+      const nextState = await action(nextProvider);
+      applyFileViewerZoomState(state, nextState || nextProvider.getState());
+      return cloneFileViewerZoomState(state);
+    } finally {
+      runningAction = false;
+    }
   };
 
   return {

@@ -14,6 +14,8 @@ import {
   type FileViewerMutableAccessor,
   type MutableFileViewerRenderReadinessState,
 } from '../source/loading';
+import { findFileViewerViewStateProvider } from '../features/document/dom';
+import { registerFileViewerGenericViewStateProvider } from '../features/document/viewState';
 import type {
   FileRenderExportAdapter,
   FileRenderContext,
@@ -57,6 +59,7 @@ export interface CreateFileRenderHandlerLoaderOptions<
   Target extends HTMLElement = HTMLElement,
 > {
   handler: FileRenderHandler<Rendered, Target>;
+  rendererId?: string;
   getTarget?: (context: RendererLoadContext) => Target;
   createContext?: (context: RendererLoadContext) => FileRenderContext;
   destroy?: (rendered: Rendered, context: RendererLoadContext) => void | Promise<void>;
@@ -141,8 +144,10 @@ export interface RunFileViewerRenderSurfaceMountInput<
   waitForPaint?: () => Promise<unknown> | unknown;
   disposeSession?: (session?: Session | null) => void;
   onStartZoomObserver?: () => void;
+  onStartViewStateObserver?: () => void;
   onRefreshDocumentIndex?: () => Promise<unknown> | unknown;
   onRefreshZoomProvider?: () => void;
+  onRefreshViewStateProvider?: () => void;
 }
 
 export interface RunFileViewerRenderSurfaceClearInput<
@@ -163,6 +168,8 @@ export interface RunFileViewerRenderSurfaceClearInput<
   onClearDocumentState?: () => void;
   onStopZoomObserver?: () => void;
   onClearZoomProvider?: () => void;
+  onStopViewStateObserver?: () => void;
+  onClearViewStateProvider?: () => void;
 }
 
 export interface FileViewerRenderSurfaceClearState<
@@ -216,8 +223,12 @@ export interface CreateFileViewerRenderSurfaceActionHandlersInput<
   onStartZoomObserver?: () => void;
   onStopZoomObserver?: () => void;
   onClearZoomProvider?: () => void;
+  onStartViewStateObserver?: () => void;
+  onStopViewStateObserver?: () => void;
+  onClearViewStateProvider?: () => void;
   onRefreshDocumentIndex?: () => Promise<unknown> | unknown;
   onRefreshZoomProvider?: () => void;
+  onRefreshViewStateProvider?: () => void;
 }
 
 export const DEFAULT_FILE_VIEWER_RENDER_TARGET_CLASS = 'file-render';
@@ -477,6 +488,8 @@ export const runFileViewerRenderSurfaceClear = <
   onClearDocumentState,
   onStopZoomObserver,
   onClearZoomProvider,
+  onStopViewStateObserver,
+  onClearViewStateProvider,
 }: RunFileViewerRenderSurfaceClearInput<Session, UnloadContext>): FileViewerRenderSurfaceClearState<Session, UnloadContext> => {
   const unloadContext = onUnloadStart?.(reason);
   let session: Session | null | undefined;
@@ -493,6 +506,8 @@ export const runFileViewerRenderSurfaceClear = <
     onClearDocumentState?.();
     onStopZoomObserver?.();
     onClearZoomProvider?.();
+    onStopViewStateObserver?.();
+    onClearViewStateProvider?.();
   }
 
   onUnloadComplete?.(unloadContext, reason);
@@ -522,8 +537,10 @@ export const runFileViewerRenderSurfaceMount = async <
   waitForPaint = waitForFileViewerNextPaint,
   disposeSession = disposeFileViewerRendererSession,
   onStartZoomObserver,
+  onStartViewStateObserver,
   onRefreshDocumentIndex,
   onRefreshZoomProvider,
+  onRefreshViewStateProvider,
 }: RunFileViewerRenderSurfaceMountInput<Session>): Promise<Session | undefined> => {
   if (!getContainer()) {
     await waitForContainer?.();
@@ -538,6 +555,7 @@ export const runFileViewerRenderSurfaceMount = async <
 
   const target = createFileViewerRenderTarget(container);
   onStartZoomObserver?.();
+  onStartViewStateObserver?.();
   await waitForContainer?.();
   await waitForPaint();
 
@@ -580,6 +598,7 @@ export const runFileViewerRenderSurfaceMount = async <
 
     void onRefreshDocumentIndex?.();
     onRefreshZoomProvider?.();
+    onRefreshViewStateProvider?.();
     return session;
   } catch (error) {
     removeFileViewerRenderTarget(container, target);
@@ -606,8 +625,12 @@ export const createFileViewerRenderSurfaceActionHandlers = <
   onStartZoomObserver,
   onStopZoomObserver,
   onClearZoomProvider,
+  onStartViewStateObserver,
+  onStopViewStateObserver,
+  onClearViewStateProvider,
   onRefreshDocumentIndex,
   onRefreshZoomProvider,
+  onRefreshViewStateProvider,
 }: CreateFileViewerRenderSurfaceActionHandlersInput<Session, UnloadContext>): FileViewerRenderSurfaceActionHandlers<Session, UnloadContext> => {
   const handleDisposeError = (error: unknown) => {
     if (disposeOptions?.onError) {
@@ -643,6 +666,8 @@ export const createFileViewerRenderSurfaceActionHandlers = <
       onClearDocumentState,
       onStopZoomObserver,
       onClearZoomProvider,
+      onStopViewStateObserver,
+      onClearViewStateProvider,
     });
   };
 
@@ -669,8 +694,10 @@ export const createFileViewerRenderSurfaceActionHandlers = <
       waitForPaint,
       disposeSession: destroyRenderSession,
       onStartZoomObserver,
+      onStartViewStateObserver,
       onRefreshDocumentIndex,
       onRefreshZoomProvider,
+      onRefreshViewStateProvider,
     });
   };
 
@@ -725,6 +752,7 @@ export const createFileRenderHandlerLoader = <
   Target extends HTMLElement = HTMLElement,
 >({
   handler,
+  rendererId,
   getTarget = context => context.surface.container as Target,
   createContext = buildFileRenderContextFromLoadContext,
   destroy,
@@ -736,18 +764,40 @@ export const createFileRenderHandlerLoader = <
     }
 
     const target = getTarget(context);
+    const renderContext = createContext(context);
     const rendered = await handler(
       source.buffer,
       target,
       source.extension,
-      createContext(context)
+      renderContext
     );
+    const existingProvider = findFileViewerViewStateProvider(target);
+    const genericViewStateProvider = existingProvider
+      ? null
+      : registerFileViewerGenericViewStateProvider({
+        host: target,
+        renderer: rendererId || source.extension,
+      });
+    const viewStateProvider = existingProvider || genericViewStateProvider?.provider || null;
+    if (context.options.initialViewState && viewStateProvider?.applyState) {
+      await viewStateProvider.applyState(context.options.initialViewState, {
+        action: 'restore',
+        source: 'initial',
+      });
+    }
 
     return createFileRenderHandlerRendererSession(rendered, () => {
-      if (destroy) {
-        return destroy(rendered, context);
+      const destroyRendered = () => {
+        if (destroy) {
+          return destroy(rendered, context);
+        }
+        return disposeFileViewerRendered(rendered);
+      };
+      try {
+        genericViewStateProvider?.destroy();
+      } finally {
+        return destroyRendered();
       }
-      return disposeFileViewerRendered(rendered);
     });
   };
 };
@@ -777,6 +827,7 @@ export const createFileRenderHandlerRegistry = <
       ...definition,
       load: createFileRenderHandlerLoader({
         handler,
+        rendererId: definition.id,
         getTarget,
         createContext,
         destroy,

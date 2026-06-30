@@ -500,6 +500,11 @@ export interface FileViewerPdfOptions {
   defaultNavigationVisible?: boolean;
   thumbnails?: boolean;
   rotation?: number;
+  /**
+   * Initial PDF view position. Prefer the top-level `initialViewState` when the
+   * same state should be passed through framework-neutral viewer APIs.
+   */
+  initialViewState?: FileViewerViewState;
   streaming?: boolean | 'same-origin';
   rangeChunkSize?: number;
   withCredentials?: boolean;
@@ -866,6 +871,15 @@ export interface FileViewerOptions {
   toolbar?: boolean | FileViewerToolbarOptions;
   search?: boolean | FileViewerSearchOptions;
   ai?: boolean | FileViewerAiOptions;
+  /**
+   * Initial renderer view position used after the document becomes ready.
+   *
+   * Renderers apply the fields they understand. All standard renderer paths
+   * expose at least renderer / zoom / scroll snapshots through the generic
+   * provider; high-interaction renderers such as PDF, XMind, Geo, 3D, and CAD
+   * add page, navigation, canvas, map, camera, or native view details.
+   */
+  initialViewState?: FileViewerViewState;
   archive?: FileViewerArchiveOptions;
   pdf?: FileViewerPdfOptions;
   docx?: FileViewerDocxOptions;
@@ -957,6 +971,82 @@ export interface FileViewerZoomProvider {
   subscribe?: (listener: () => void) => () => void;
 }
 
+export interface FileViewerViewScrollState {
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  clientWidth: number;
+  clientHeight: number;
+  topRatio: number;
+  leftRatio: number;
+}
+
+export interface FileViewerNavigationState {
+  visible?: boolean;
+  mode?: string;
+}
+
+export interface FileViewerViewState {
+  renderer?: string;
+  page?: number;
+  pageCount?: number;
+  scale?: number;
+  zoom?: FileViewerZoomState;
+  rotation?: number;
+  scroll?: Partial<FileViewerViewScrollState>;
+  navigation?: FileViewerNavigationState;
+  extra?: Record<string, unknown>;
+}
+
+export type FileViewerViewStateChangeSource =
+  | 'initial'
+  | 'api'
+  | 'user'
+  | 'viewer'
+  | (string & {});
+
+export type FileViewerViewStateChangeAction =
+  | 'init'
+  | 'restore'
+  | 'page-change'
+  | 'page-click'
+  | 'page-step'
+  | 'outline-click'
+  | 'zoom-change'
+  | 'zoom-in'
+  | 'zoom-out'
+  | 'zoom-reset'
+  | 'rotation-change'
+  | 'rotate-left'
+  | 'rotate-right'
+  | 'scroll'
+  | 'navigation-toggle'
+  | 'navigation-mode-change'
+  | (string & {});
+
+export interface FileViewerViewStateChange {
+  state: FileViewerViewState;
+  action: FileViewerViewStateChangeAction;
+  source: FileViewerViewStateChangeSource;
+  timestamp: number;
+}
+
+export interface FileViewerApplyViewStateOptions {
+  notify?: boolean;
+  action?: FileViewerViewStateChangeAction;
+  source?: FileViewerViewStateChangeSource;
+}
+
+export interface FileViewerViewStateProvider {
+  getState: () => FileViewerViewState;
+  applyState?: (
+    state: FileViewerViewState,
+    options?: FileViewerApplyViewStateOptions
+  ) => FileViewerViewState | Promise<FileViewerViewState>;
+  subscribe?: (listener: (change: FileViewerViewStateChange) => void) => () => void;
+}
+
 export interface FileViewerSearchMatch {
   id: string;
   index: number;
@@ -1021,6 +1111,7 @@ export interface FileViewerComponentEventMap {
   'search-change': FileViewerSearchState;
   'location-change': FileViewerDocumentAnchor | null;
   'zoom-change': FileViewerZoomState;
+  'view-state-change': FileViewerViewStateChange;
 }
 
 export type FileViewerEventType = keyof FileViewerComponentEventMap;
@@ -1045,6 +1136,7 @@ export interface FileViewerComponentEmits {
   (event: 'search-change', state: FileViewerComponentEventMap['search-change']): void;
   (event: 'location-change', anchor: FileViewerComponentEventMap['location-change']): void;
   (event: 'zoom-change', state: FileViewerComponentEventMap['zoom-change']): void;
+  (event: 'view-state-change', change: FileViewerComponentEventMap['view-state-change']): void;
 }
 
 export interface FileViewerPublicApi {
@@ -1055,6 +1147,11 @@ export interface FileViewerPublicApi {
   zoomOut(): Promise<FileViewerZoomState>;
   resetZoom(): Promise<FileViewerZoomState>;
   getZoomState(): FileViewerZoomState;
+  getViewState(): FileViewerViewState | null;
+  applyViewState(
+    state: FileViewerViewState,
+    options?: FileViewerApplyViewStateOptions
+  ): Promise<FileViewerViewState | null>;
   getOperationAvailability(): FileViewerOperationAvailability;
   getScrollContainer(): HTMLElement | null;
   searchDocument(query: string): Promise<FileViewerSearchState>;
@@ -1237,6 +1334,11 @@ export interface FileViewerInstance {
   zoomOut(): Promise<FileViewerZoomState>;
   resetZoom(): Promise<FileViewerZoomState>;
   getZoomState(): FileViewerZoomState;
+  getViewState(): FileViewerViewState | null;
+  applyViewState(
+    state: FileViewerViewState,
+    options?: FileViewerApplyViewStateOptions
+  ): Promise<FileViewerViewState | null>;
   search(query: string): Promise<FileViewerSearchState>;
   nextSearchResult(): Promise<FileViewerSearchState>;
   previousSearchResult(): Promise<FileViewerSearchState>;
