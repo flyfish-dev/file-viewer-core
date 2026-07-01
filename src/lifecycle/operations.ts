@@ -1021,6 +1021,7 @@ export const normalizeFileViewerToolbar = (
       print: false,
       exportHtml: false,
       zoom: false,
+      search: false,
     };
   }
   if (toolbar && typeof toolbar === 'object') {
@@ -1029,6 +1030,7 @@ export const normalizeFileViewerToolbar = (
       print: toolbar.print !== false && isFileViewerToolbarOperationVisible(toolbar, 'print'),
       exportHtml: toolbar.exportHtml !== false && isFileViewerToolbarOperationVisible(toolbar, 'export-html'),
       zoom: toolbar.zoom !== false && hasAnyToolbarZoomOperation(toolbar),
+      search: toolbar.search !== false,
       items: toolbar.items,
       permissions: toolbar.permissions,
       position: toolbar.position,
@@ -1043,6 +1045,7 @@ export const normalizeFileViewerToolbar = (
     print: true,
     exportHtml: true,
     zoom: true,
+    search: true,
   };
 };
 

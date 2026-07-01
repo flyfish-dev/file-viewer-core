@@ -6,6 +6,7 @@ import type {
   FileViewerDrawingOptions,
   FileViewerOptions,
   FileViewerPdfOptions,
+  FileViewerPresentationOptions,
   FileViewerSpreadsheetOptions,
   FileViewerTypstOptions,
 } from '../contracts/types';
@@ -14,6 +15,7 @@ export const DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH = 'vendor/libarchive/worker
 export const DEFAULT_FILE_VIEWER_ARCHIVE_WASM_PATH = 'vendor/libarchive/libarchive.wasm';
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH = 'vendor/docx/docx.worker.js';
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH = 'vendor/docx/jszip.min.js';
+export const DEFAULT_FILE_VIEWER_PRESENTATION_WORKER_PATH = 'vendor/pptx/pptx.worker.js';
 export const DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH = 'vendor/xlsx/sheet.worker.js';
 export const DEFAULT_FILE_VIEWER_PDF_WORKER_PATH = 'vendor/pdf/pdf.worker.mjs';
 export const DEFAULT_FILE_VIEWER_PDF_CMAP_PATH = 'vendor/pdf/cmaps/';
@@ -85,6 +87,7 @@ export type FileViewerRendererAssetOptionPath =
   | 'pdf.cMapUrl'
   | 'pdf.wasmUrl'
   | 'pdf.standardFontDataUrl'
+  | 'presentation.workerUrl'
   | 'spreadsheet.workerUrl'
   | 'typst.compilerWasmUrl'
   | 'typst.fontAssetsUrl'
@@ -270,6 +273,21 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         defaultPath: DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH,
         optionPath: 'docx.workerJsZipUrl',
         description: 'JSZip runtime loaded by the @file-viewer/docx worker for fully offline DOCX parsing.',
+      },
+    ],
+  },
+  {
+    rendererId: 'office-presentation',
+    assets: [
+      {
+        id: 'pptx-worker',
+        rendererId: 'office-presentation',
+        kind: 'worker',
+        target: 'public',
+        required: false,
+        defaultPath: DEFAULT_FILE_VIEWER_PRESENTATION_WORKER_PATH,
+        optionPath: 'presentation.workerUrl',
+        description: 'Optional @file-viewer/pptx worker for stable PPTX parsing in IIFE, CDN, and offline deployments.',
       },
     ],
   },
@@ -486,6 +504,15 @@ export const resolveFileViewerSpreadsheetWorkerUrl = (
   });
 };
 
+export const resolveFileViewerPresentationWorkerUrl = (
+  options?: Pick<FileViewerPresentationOptions, 'workerUrl'> | null,
+  documentBaseUrl?: string
+) => {
+  return resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_PRESENTATION_WORKER_PATH, {
+    documentBaseUrl,
+  });
+};
+
 export const resolveFileViewerTypstCompilerWasmUrl = (
   options?: Pick<FileViewerTypstOptions, 'compilerWasmUrl'> | null,
   overrides: Array<string | undefined> = [],
@@ -573,6 +600,8 @@ const getRendererAssetOptionValue = (
       return options?.pdf?.wasmUrl;
     case 'pdf.standardFontDataUrl':
       return options?.pdf?.standardFontDataUrl;
+    case 'presentation.workerUrl':
+      return options?.presentation?.workerUrl;
     case 'spreadsheet.workerUrl':
       return options?.spreadsheet?.workerUrl;
     case 'typst.compilerWasmUrl':

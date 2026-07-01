@@ -20,6 +20,11 @@ export type FileViewerMessageKey =
   | 'toolbar.printTitle'
   | 'toolbar.exportHtml'
   | 'toolbar.exportHtmlTitle'
+  | 'toolbar.search'
+  | 'toolbar.searchPlaceholder'
+  | 'toolbar.searchPrevious'
+  | 'toolbar.searchNext'
+  | 'toolbar.searchClear'
   | 'state.ready.title'
   | 'state.ready.message'
   | 'state.empty.title'
@@ -447,6 +452,7 @@ export interface FileViewerToolbarOptions {
   print?: boolean;
   exportHtml?: boolean;
   zoom?: boolean;
+  search?: boolean;
   /** Controls which built-in toolbar actions are displayed without disabling controller APIs. */
   items?: FileViewerToolbarActionMap;
   /** Hard operation permission map. False values block both built-in toolbar and public API calls. */

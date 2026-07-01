@@ -514,6 +514,7 @@ export const buildFileViewerRenderedHtmlDocument = async ({
 
   await prepareFileViewerRenderedContentForSnapshot(source, adapter)
   const clone = source.cloneNode(true) as HTMLElement
+  clone.querySelectorAll('.viewer-watermark').forEach(node => node.remove())
   replaceFileViewerCanvasWithImages(source, clone)
   const printStyle = await resolveFileViewerPrintStyle(adapter, exportOptions)
 

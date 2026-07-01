@@ -187,6 +187,125 @@ export const createViewer = (
     anchors: { value: [] as FileViewerDocumentAnchor[] },
     state: createEmptyFileViewerSearchState(),
   };
+  let watermarkEl: HTMLDivElement | null = null;
+  let forcedWatermarkContainerPosition = false;
+  let watermarkResizeObserver: ResizeObserver | null = null;
+  let watermarkMutationObserver: MutationObserver | null = null;
+  let watermarkFrame: number | null = null;
+
+  const getContainerWindow = () =>
+    container.ownerDocument.defaultView || (typeof window !== 'undefined' ? window : undefined);
+
+  const cancelWatermarkFrame = () => {
+    if (watermarkFrame === null) {
+      return;
+    }
+    const view = getContainerWindow();
+    if (view?.cancelAnimationFrame) {
+      view.cancelAnimationFrame(watermarkFrame);
+    }
+    watermarkFrame = null;
+  };
+
+  const updateWatermarkOverlaySize = () => {
+    watermarkFrame = null;
+    if (!watermarkEl || watermarkEl.parentElement !== container) {
+      return;
+    }
+
+    const previousDisplay = watermarkEl.style.display;
+    watermarkEl.style.display = 'none';
+    const width = Math.max(container.scrollWidth, container.clientWidth);
+    const height = Math.max(container.scrollHeight, container.clientHeight);
+    watermarkEl.style.display = previousDisplay;
+    watermarkEl.style.width = `${width}px`;
+    watermarkEl.style.height = `${height}px`;
+  };
+
+  const scheduleWatermarkSizeUpdate = () => {
+    if (!watermarkEl) {
+      return;
+    }
+    cancelWatermarkFrame();
+    const view = getContainerWindow();
+    if (view?.requestAnimationFrame) {
+      watermarkFrame = view.requestAnimationFrame(updateWatermarkOverlaySize);
+      return;
+    }
+    updateWatermarkOverlaySize();
+  };
+
+  const stopWatermarkObservers = () => {
+    cancelWatermarkFrame();
+    watermarkResizeObserver?.disconnect();
+    watermarkResizeObserver = null;
+    watermarkMutationObserver?.disconnect();
+    watermarkMutationObserver = null;
+  };
+
+  const startWatermarkObservers = () => {
+    stopWatermarkObservers();
+    const view = getContainerWindow();
+    if (view?.ResizeObserver) {
+      watermarkResizeObserver = new view.ResizeObserver(() => scheduleWatermarkSizeUpdate());
+      watermarkResizeObserver.observe(container);
+    }
+    if (view?.MutationObserver) {
+      watermarkMutationObserver = new view.MutationObserver(mutations => {
+        const onlyWatermarkChanged = mutations.every(mutation =>
+          watermarkEl && (
+            mutation.target === watermarkEl ||
+            watermarkEl.contains(mutation.target as Node)
+          )
+        );
+        if (!onlyWatermarkChanged) {
+          scheduleWatermarkSizeUpdate();
+        }
+      });
+      watermarkMutationObserver.observe(container, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+      });
+    }
+    scheduleWatermarkSizeUpdate();
+  };
+
+  const removeWatermarkOverlay = () => {
+    stopWatermarkObservers();
+    watermarkEl?.remove();
+    watermarkEl = null;
+    if (forcedWatermarkContainerPosition) {
+      container.style.position = '';
+      forcedWatermarkContainerPosition = false;
+    }
+  };
+
+  const syncWatermarkOverlay = () => {
+    const inlineStyle = buildFileViewerWatermarkInlineStyle(options.watermark);
+    if (!inlineStyle) {
+      removeWatermarkOverlay();
+      return;
+    }
+
+    if (!watermarkEl || watermarkEl.ownerDocument !== container.ownerDocument) {
+      watermarkEl = container.ownerDocument.createElement('div');
+      watermarkEl.className = 'viewer-watermark';
+      watermarkEl.setAttribute('aria-hidden', 'true');
+    }
+    watermarkEl.style.cssText = inlineStyle;
+
+    const view = getContainerWindow();
+    if (view?.getComputedStyle && view.getComputedStyle(container).position === 'static' && !container.style.position) {
+      container.style.position = 'relative';
+      forcedWatermarkContainerPosition = true;
+    }
+
+    if (watermarkEl.parentElement !== container) {
+      container.appendChild(watermarkEl);
+    }
+    startWatermarkObservers();
+  };
 
   const ensureRendererPluginsInstalled = async () => {
     const nextMode = options.rendererMode || 'extend';
@@ -370,6 +489,7 @@ export const createViewer = (
       session: null,
       exportAdapter: null,
     });
+    removeWatermarkOverlay();
     await documentActions.clearDocumentState();
     zoomController.clearProvider();
     viewStateController.clearProvider();
@@ -394,6 +514,7 @@ export const createViewer = (
       if (!renderer?.load) {
         renderMissingRendererState(container, normalized.extension, options);
         applyFileViewerRenderSurfaceState(renderSurfaceState, { session: null });
+        syncWatermarkOverlay();
         emitZoomAndOperationAvailabilityChange();
         await emitLifecycle(options, createOptions.onEvent, 'load-complete', normalized, version, startedAt);
         return null;
@@ -409,6 +530,7 @@ export const createViewer = (
         },
       });
       applyFileViewerRenderSurfaceState(renderSurfaceState, { session });
+      syncWatermarkOverlay();
       zoomController.refreshProvider();
       viewStateController.refreshProvider();
       await documentActions.refreshDocumentIndex({ notify: false });
@@ -421,12 +543,14 @@ export const createViewer = (
       documentActions.destroyDocumentFeatures();
       zoomController.destroy();
       viewStateController.destroy();
+      removeWatermarkOverlay();
     },
     updateOptions(nextOptions: Partial<FileViewerOptions>) {
       options = {
         ...options,
         ...nextOptions,
       };
+      syncWatermarkOverlay();
     },
     getCapabilities(extension?: string) {
       return getCapabilitiesForExtension(extension);
