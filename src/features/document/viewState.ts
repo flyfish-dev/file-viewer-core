@@ -5,8 +5,11 @@ import {
   resolveFileViewerScrollContainer,
   unregisterFileViewerViewStateProvider,
 } from './dom';
+import { resolveFileViewerFitScale } from './fit';
 import type {
   FileViewerApplyViewStateOptions,
+  FileViewerFitRequest,
+  FileViewerFitResult,
   FileViewerViewScrollState,
   FileViewerViewState,
   FileViewerViewStateChange,
@@ -210,6 +213,74 @@ export const registerFileViewerGenericViewStateProvider = ({
     }
   };
 
+  const fit = async (request: FileViewerFitRequest): Promise<FileViewerFitResult> => {
+    const zoomProvider = getZoomProvider();
+    if (zoomProvider?.fit) {
+      return zoomProvider.fit(request);
+    }
+    if (!zoomProvider?.setZoom) {
+      return {
+        applied: false,
+        mode: request.mode,
+        resize: request.resize,
+        source: request.source,
+        reason: 'zoom-provider-unavailable',
+        provider: 'view-state',
+      };
+    }
+
+    const zoomState = zoomProvider.getState();
+    const currentScale = Number(zoomState.scale) > 0 ? Number(zoomState.scale) : 1;
+    const scrollElement = resolveScrollTarget();
+    const viewportWidth = request.viewportWidth || scrollElement.clientWidth || host.clientWidth;
+    const viewportHeight = request.viewportHeight || scrollElement.clientHeight || host.clientHeight;
+    const contentWidth = Math.max(
+      scrollElement.scrollWidth || 0,
+      host.scrollWidth || 0,
+      scrollElement.getBoundingClientRect?.().width || 0
+    );
+    const contentHeight = Math.max(
+      scrollElement.scrollHeight || 0,
+      host.scrollHeight || 0,
+      scrollElement.getBoundingClientRect?.().height || 0
+    );
+    const scale = resolveFileViewerFitScale({
+      mode: request.mode,
+      viewportWidth,
+      viewportHeight,
+      contentWidth: contentWidth / currentScale,
+      contentHeight: contentHeight / currentScale,
+      currentScale,
+      minScale: request.minScale ?? zoomState.minScale,
+      maxScale: request.maxScale ?? zoomState.maxScale,
+    });
+
+    if (!scale) {
+      return {
+        applied: false,
+        mode: request.mode,
+        resize: request.resize,
+        source: request.source,
+        reason: 'unmeasurable',
+        provider: 'view-state',
+      };
+    }
+
+    suppressProgrammaticScrollEvents();
+    await zoomProvider.setZoom(scale);
+    await waitForViewStateFrame(host);
+    const state = emit('fit', request.source);
+    return {
+      applied: true,
+      mode: request.mode,
+      resize: request.resize,
+      scale,
+      source: request.source,
+      provider: 'view-state',
+      state,
+    };
+  };
+
   const scheduleScrollChange = () => {
     if (destroyed || Date.now() < suppressScrollEventUntil || scrollFrame) {
       return;
@@ -246,12 +317,13 @@ export const registerFileViewerGenericViewStateProvider = ({
       }
       return getState();
     },
+    fit,
     subscribe: emitter.subscribe,
   };
 
   host.dataset.viewerViewStateProvider = 'generic';
   registerFileViewerViewStateProvider(host, provider);
-  host.addEventListener('scroll', scheduleScrollChange, {
+  host.addEventListener?.('scroll', scheduleScrollChange, {
     capture: true,
     passive: true,
   });
@@ -271,7 +343,7 @@ export const registerFileViewerGenericViewStateProvider = ({
         ownerWindow.cancelAnimationFrame(scrollFrame);
       }
       scrollFrame = 0;
-      host.removeEventListener('scroll', scheduleScrollChange, true);
+      host.removeEventListener?.('scroll', scheduleScrollChange, true);
       unregisterFileViewerViewStateProvider(host);
     },
   };

@@ -199,7 +199,7 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         rendererId: 'archive',
         kind: 'worker',
         target: 'public',
-        required: false,
+        required: true,
         defaultPath: DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH,
         optionPath: 'archive.workerUrl',
         description: 'libarchive.js module worker used for broad archive format parsing.',
@@ -209,7 +209,7 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         rendererId: 'archive',
         kind: 'wasm',
         target: 'public',
-        required: false,
+        required: true,
         defaultPath: DEFAULT_FILE_VIEWER_ARCHIVE_WASM_PATH,
         optionPath: 'archive.wasmUrl',
         description: 'libarchive.js WebAssembly module expected next to the public worker.',
@@ -361,7 +361,7 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
   },
 ];
 
-const DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL = 'http://localhost/';
+const DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL = 'file:///';
 
 export const resolveFileViewerAssetUrl = (
   value: string | URL | undefined,

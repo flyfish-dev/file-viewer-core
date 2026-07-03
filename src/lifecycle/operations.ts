@@ -27,9 +27,11 @@ import type {
   FileViewerOperationContext,
   FileViewerOperationType,
   FileViewerOptions,
+  FileViewerResolvedToolbarItem,
   FileViewerSearchState,
   FileViewerSourceKind,
   FileViewerToolbarActionMap,
+  FileViewerToolbarItem,
   FileViewerToolbarOptions,
   FileViewerToolbarPosition,
   FileViewerPublicApi,
@@ -64,6 +66,14 @@ const FILE_VIEWER_ZOOM_BUTTON_OPERATIONS = {
   canZoomOut: 'zoom-out',
   canReset: 'zoom-reset',
 } as const satisfies Record<FileViewerZoomButtonAction, typeof FILE_VIEWER_ZOOM_OPERATIONS[number]>;
+
+export const DEFAULT_FILE_VIEWER_TOOLBAR_ORDER = [
+  'search',
+  'zoom',
+  'download',
+  'print',
+  'exportHtml',
+] as const satisfies readonly FileViewerResolvedToolbarItem[];
 
 export interface FileViewerLifecycleComponentEmit {
   (event: 'load-start', context: FileViewerLifecycleContext): void;
@@ -146,6 +156,7 @@ export interface ResolveFileViewerToolbarStateInput extends ResolveFileViewerOpe
 export interface FileViewerToolbarState {
   operationAvailability: FileViewerOperationAvailability;
   visibleToolbar: FileViewerToolbarOptions;
+  toolbarOrder: FileViewerResolvedToolbarItem[];
   showToolbar: boolean;
   toolbarPosition: FileViewerToolbarPosition;
   toolbarDisabled: boolean;
@@ -553,7 +564,7 @@ export const resolveFileViewerBeforeOperationErrorMessage = ({
   prefix,
   i18n,
 }: ResolveFileViewerBeforeOperationErrorMessageInput) => {
-  return formatErrorMessage(prefix || translateFileViewerMessage(i18n, 'error.beforeOperation'), error);
+  return formatErrorMessage(prefix || translateFileViewerMessage(i18n, 'error.beforeOperation'), error, i18n);
 };
 
 export const resolveFileViewerLifecycleHookErrorMessage = ({
@@ -697,6 +708,41 @@ const isFileViewerToolbarOperationVisible = (
   operation: FileViewerOperationType
 ) => isToolbarActionMapAllowed(toolbar.items, operation) &&
   isToolbarActionMapAllowed(toolbar.permissions, operation);
+
+const normalizeFileViewerToolbarItem = (
+  item: FileViewerToolbarItem | string | undefined
+): FileViewerResolvedToolbarItem | undefined => {
+  if (item === 'search' || item === 'zoom' || item === 'download' || item === 'print') {
+    return item;
+  }
+  if (item === 'exportHtml' || item === 'export-html') {
+    return 'exportHtml';
+  }
+  return undefined;
+};
+
+export const resolveFileViewerToolbarOrder = (
+  toolbar: Pick<FileViewerToolbarOptions, 'order'> | undefined
+): FileViewerResolvedToolbarItem[] => {
+  const order: FileViewerResolvedToolbarItem[] = [];
+  const seen = new Set<FileViewerResolvedToolbarItem>();
+
+  const addItem = (item: FileViewerToolbarItem | string | undefined) => {
+    const normalized = normalizeFileViewerToolbarItem(item);
+    if (!normalized || seen.has(normalized)) {
+      return;
+    }
+    seen.add(normalized);
+    order.push(normalized);
+  };
+
+  if (Array.isArray(toolbar?.order)) {
+    toolbar.order.forEach(addItem);
+  }
+  DEFAULT_FILE_VIEWER_TOOLBAR_ORDER.forEach(addItem);
+
+  return order;
+};
 
 const hasAnyToolbarZoomOperation = (
   toolbar: FileViewerToolbarOptions
@@ -1022,6 +1068,7 @@ export const normalizeFileViewerToolbar = (
       exportHtml: false,
       zoom: false,
       search: false,
+      order: resolveFileViewerToolbarOrder(undefined),
     };
   }
   if (toolbar && typeof toolbar === 'object') {
@@ -1031,6 +1078,7 @@ export const normalizeFileViewerToolbar = (
       exportHtml: toolbar.exportHtml !== false && isFileViewerToolbarOperationVisible(toolbar, 'export-html'),
       zoom: toolbar.zoom !== false && hasAnyToolbarZoomOperation(toolbar),
       search: toolbar.search !== false,
+      order: resolveFileViewerToolbarOrder(toolbar),
       items: toolbar.items,
       permissions: toolbar.permissions,
       position: toolbar.position,
@@ -1046,6 +1094,7 @@ export const normalizeFileViewerToolbar = (
     exportHtml: true,
     zoom: true,
     search: true,
+    order: resolveFileViewerToolbarOrder(undefined),
   };
 };
 
@@ -1146,6 +1195,7 @@ export const resolveFileViewerToolbarState = ({
   return {
     operationAvailability,
     visibleToolbar,
+    toolbarOrder: resolveFileViewerToolbarOrder(toolbar),
     showToolbar: hasVisibleFileViewerToolbarActions(visibleToolbar),
     toolbarPosition: resolveFileViewerToolbarPosition(options, availabilityInput.extension),
     toolbarDisabled: isFileViewerToolbarDisabled({
@@ -1161,7 +1211,7 @@ export const resolveFileViewerToolbarPosition = (
 ): FileViewerToolbarPosition => {
   const toolbar = options?.toolbar;
   const position = toolbar && typeof toolbar === 'object' ? toolbar.position : 'auto';
-  if (position === 'top' || position === 'bottom-right') {
+  if (position === 'top' || position === 'top-center' || position === 'bottom-right') {
     return position;
   }
   return extension === 'pdf' ? 'bottom-right' : 'top';

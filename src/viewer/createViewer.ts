@@ -13,6 +13,10 @@ import {
 import { createFileViewerZoomController } from '../features/document/zoom';
 import { createFileViewerViewStateController } from '../features/document/viewState';
 import {
+  createFileViewerFitController,
+  hasFileViewerExplicitInitialViewState,
+} from '../features/document/fit';
+import {
   DEFAULT_FILE_VIEWER_DOWNLOAD_FILENAME,
   DEFAULT_FILE_VIEWER_EXPORT_FILENAME,
   DEFAULT_FILE_VIEWER_PREVIEW_TITLE,
@@ -47,6 +51,8 @@ import {
   createFileRenderHandlerLoader,
   applyFileViewerRenderSurfaceState,
   createFileViewerRenderSurfaceState,
+  createFileViewerRenderSurface,
+  removeFileViewerRenderTarget,
 } from '../rendering/handler';
 import { createFileViewerCoreRendererRegistry } from '../renderers/index';
 import { createFileViewerRequestScope } from '../source/loading';
@@ -62,6 +68,9 @@ import type {
   FileViewerDownloadOptions,
   FileViewerEventHandler,
   FileViewerExportHtmlOptions,
+  FileViewerFitMode,
+  FileViewerFitOptions,
+  FileViewerFitResult,
   FileViewerInstance,
   FileViewerLifecycleContext,
   FileViewerOperationType,
@@ -181,6 +190,8 @@ export const createViewer = (
   let installedAutoRenderersEnabled = resolveAutoRenderersEnabled(options);
   let installedAutoRendererVersion = -1;
   let currentSource: NormalizedFileViewerSource | null = null;
+  let currentRenderTarget: HTMLElement | null = null;
+  let currentDocumentRoot: HTMLElement | null = null;
   const renderSurfaceState = createFileViewerRenderSurfaceState<RendererSession>();
   const requestScope = createFileViewerRequestScope();
   const documentTarget = {
@@ -278,6 +289,40 @@ export const createViewer = (
     if (forcedWatermarkContainerPosition) {
       container.style.position = '';
       forcedWatermarkContainerPosition = false;
+    }
+  };
+
+  const removeRenderTarget = (target = currentRenderTarget) => {
+    if (!target) {
+      return;
+    }
+    removeFileViewerRenderTarget(container, target);
+    if (currentRenderTarget === target) {
+      currentRenderTarget = null;
+    }
+  };
+
+  const createRenderTarget = (fillHeight = true) => {
+    const surface = createFileViewerRenderSurface(container, {
+      styleIsolation: options.styleIsolation,
+    });
+    const target = surface.host || surface.container;
+    if (fillHeight) {
+      target.style.height = '100%';
+      surface.container.style.height = '100%';
+    }
+    currentRenderTarget = target;
+    return surface;
+  };
+
+  const disposeStaleSession = async (
+    session: RendererSession | null | undefined,
+    target: HTMLElement
+  ) => {
+    try {
+      await session?.destroy?.();
+    } finally {
+      removeRenderTarget(target);
     }
   };
 
@@ -449,19 +494,42 @@ export const createViewer = (
     emitOperationAvailabilityChange();
   };
 
+  const emitFitChange = (result: FileViewerFitResult) => {
+    createOptions.onEvent?.({
+      type: 'fit-change',
+      payload: result,
+    });
+  };
+
   const zoomController = createFileViewerZoomController({
-    root: () => container,
+    root: () => currentDocumentRoot || container,
     beforeZoom: runBeforeViewerOperation,
     onChange: state => emitZoomAndOperationAvailabilityChange(state),
   });
+  const fitController = createFileViewerFitController({
+    root: () => currentDocumentRoot || container,
+    getFit: () => options.fit,
+    onFit: result => {
+      zoomController.refreshProvider();
+      viewStateController.refreshProvider();
+      emitZoomAndOperationAvailabilityChange();
+      emitFitChange(result);
+    },
+  });
   const viewStateController = createFileViewerViewStateController({
-    root: () => container,
+    root: () => currentDocumentRoot || container,
     onChange: change => {
+      if (
+        (change.source === 'user' || change.source === 'api') &&
+        change.action !== 'fit'
+      ) {
+        fitController.markUserInteraction();
+      }
       createOptions.onEvent?.({ type: 'view-state-change', payload: change });
     },
   });
   const documentActions = createFileViewerDocumentFeatureControllerActionHandlers({
-    root: () => container,
+    root: () => currentDocumentRoot || container,
     searchTarget: documentTarget,
     searchOptions: () => options.search,
     getAiOptions: () => options.ai,
@@ -474,17 +542,26 @@ export const createViewer = (
   });
   zoomController.observe();
   viewStateController.observe();
+  fitController.observe();
 
   const destroyCurrent = async (reason: FileViewerLifecycleContext['reason'] = 'replace') => {
-    if (!currentSource) {
+    const session = renderSurfaceState.session;
+    const target = currentRenderTarget;
+
+    if (!currentSource && !session && !target) {
       return;
     }
+
     const source = currentSource;
     const startedAt = Date.now();
     const version = requestScope.getCurrentVersion();
-    await emitLifecycle(options, createOptions.onEvent, 'unload-start', source, version, startedAt, reason);
-    await renderSurfaceState.session?.destroy?.();
+    if (source) {
+      await emitLifecycle(options, createOptions.onEvent, 'unload-start', source, version, startedAt, reason);
+    }
+    await session?.destroy?.();
+    removeRenderTarget(target || undefined);
     currentSource = null;
+    currentDocumentRoot = null;
     applyFileViewerRenderSurfaceState(renderSurfaceState, {
       session: null,
       exportAdapter: null,
@@ -493,26 +570,38 @@ export const createViewer = (
     await documentActions.clearDocumentState();
     zoomController.clearProvider();
     viewStateController.clearProvider();
+    fitController.resetAutoFit();
     emitZoomAndOperationAvailabilityChange();
-    await emitLifecycle(options, createOptions.onEvent, 'unload-complete', source, version, startedAt, reason);
+    if (source) {
+      await emitLifecycle(options, createOptions.onEvent, 'unload-complete', source, version, startedAt, reason);
+    }
   };
 
   return {
     container,
     async load(source: FileViewerSource) {
+      const version = requestScope.requestController.createVersion();
       await destroyCurrent('replace');
       await ensureRendererPluginsInstalled();
 
+      if (!requestScope.isCurrentRequest(version)) {
+        return null;
+      }
+
       const normalized = normalizeSource(source);
       currentSource = normalized;
-      const version = requestScope.requestController.createVersion();
 
       const renderer = registry.getByExtension(normalized.extension);
       const startedAt = Date.now();
       await emitLifecycle(options, createOptions.onEvent, 'load-start', normalized, version, startedAt);
 
+      const surface = createRenderTarget(renderer?.id !== 'office-presentation');
+      const target = surface.container;
+      const targetHost = surface.host || target;
+      currentDocumentRoot = target;
+
       if (!renderer?.load) {
-        renderMissingRendererState(container, normalized.extension, options);
+        renderMissingRendererState(target, normalized.extension, options);
         applyFileViewerRenderSurfaceState(renderSurfaceState, { session: null });
         syncWatermarkOverlay();
         emitZoomAndOperationAvailabilityChange();
@@ -520,37 +609,67 @@ export const createViewer = (
         return null;
       }
 
-      const session = await renderer.load({
-        source: normalized,
-        surface: { container },
-        options,
-        signal: createOptions.signal,
-        registerExportAdapter: adapter => {
-          applyFileViewerRenderSurfaceState(renderSurfaceState, { exportAdapter: adapter });
-        },
-      });
+      let session: RendererSession | undefined;
+      try {
+        session = await renderer.load({
+          source: normalized,
+          surface,
+          options,
+          signal: createOptions.signal,
+          registerExportAdapter: adapter => {
+            if (requestScope.isCurrentRequest(version)) {
+              applyFileViewerRenderSurfaceState(renderSurfaceState, { exportAdapter: adapter });
+            }
+          },
+        });
+      } catch (error) {
+        if (!requestScope.isCurrentRequest(version)) {
+          removeRenderTarget(targetHost);
+          return null;
+        }
+        removeRenderTarget(targetHost);
+        throw error;
+      }
+
+      if (!requestScope.isCurrentRequest(version)) {
+        await disposeStaleSession(session, targetHost);
+        return null;
+      }
+
       applyFileViewerRenderSurfaceState(renderSurfaceState, { session });
       syncWatermarkOverlay();
       zoomController.refreshProvider();
       viewStateController.refreshProvider();
       await documentActions.refreshDocumentIndex({ notify: false });
+      await fitController.applyInitialFit({
+        skip: hasFileViewerExplicitInitialViewState(options.initialViewState),
+      });
+      zoomController.refreshProvider();
+      viewStateController.refreshProvider();
       emitZoomAndOperationAvailabilityChange();
       await emitLifecycle(options, createOptions.onEvent, 'load-complete', normalized, version, startedAt);
       return session;
     },
     async destroy(reason = 'component-unmount') {
+      requestScope.requestController.createVersion();
       await destroyCurrent(reason);
       documentActions.destroyDocumentFeatures();
       zoomController.destroy();
       viewStateController.destroy();
+      fitController.destroy();
       removeWatermarkOverlay();
     },
     updateOptions(nextOptions: Partial<FileViewerOptions>) {
+      const previousFit = options.fit;
       options = {
         ...options,
         ...nextOptions,
       };
       syncWatermarkOverlay();
+      if ('fit' in nextOptions && nextOptions.fit !== previousFit) {
+        fitController.resetAutoFit();
+        fitController.scheduleFit('resize');
+      }
     },
     getCapabilities(extension?: string) {
       return getCapabilitiesForExtension(extension);
@@ -612,19 +731,29 @@ export const createViewer = (
       });
     },
     async zoomIn() {
+      fitController.markUserInteraction();
       const state = await zoomController.zoomIn();
       emitZoomAndOperationAvailabilityChange(state);
       return state;
     },
     async zoomOut() {
+      fitController.markUserInteraction();
       const state = await zoomController.zoomOut();
       emitZoomAndOperationAvailabilityChange(state);
       return state;
     },
     async resetZoom() {
+      fitController.markUserInteraction();
       const state = await zoomController.resetZoom();
       emitZoomAndOperationAvailabilityChange(state);
       return state;
+    },
+    async fitToView(fit?: FileViewerFitMode | FileViewerFitOptions) {
+      const result = await fitController.fit(fit, { source: 'api', reason: 'api' });
+      zoomController.refreshProvider();
+      viewStateController.refreshProvider();
+      emitZoomAndOperationAvailabilityChange();
+      return result;
     },
     getZoomState() {
       return zoomController.getState();
@@ -633,6 +762,7 @@ export const createViewer = (
       return viewStateController.getState();
     },
     applyViewState(state: FileViewerViewState, applyOptions?: FileViewerApplyViewStateOptions) {
+      fitController.markUserInteraction();
       return viewStateController.applyState(state, applyOptions);
     },
     search(query: string) {

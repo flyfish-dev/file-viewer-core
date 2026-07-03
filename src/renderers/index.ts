@@ -31,9 +31,9 @@ const createWrapper = (el: HTMLDivElement): FileViewerRenderedInstance => ({
 export const coreBrowserRendererHandlers: readonly CoreBrowserRendererHandlerEntry[] = [
   {
     rendererId: 'image',
-    handler: async (buffer: ArrayBuffer, target: HTMLDivElement, type?: string) => {
+    handler: async (buffer: ArrayBuffer, target: HTMLDivElement, type?: string, context?: FileRenderContext) => {
       const { default: renderImage } = await import('./image');
-      return renderImage(buffer, target, type);
+      return renderImage(buffer, target, type, context);
     },
   },
 ];
@@ -74,8 +74,8 @@ const resolveCoreRendererHandlers = (preset: FileViewerBuiltinRendererPreset) =>
   return coreBrowserRendererHandlers;
 };
 
-const renderUnsupported: CoreBrowserRendererHandler = async (_buffer, target, type) => {
-  const state = createFileViewerUnsupportedState(type);
+const renderUnsupported: CoreBrowserRendererHandler = async (_buffer, target, type, context) => {
+  const state = createFileViewerUnsupportedState(type, undefined, context?.options);
   const wrapper = document.createElement('div');
   wrapper.style.textAlign = 'center';
   wrapper.style.marginTop = '80px';

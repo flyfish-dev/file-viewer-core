@@ -46,7 +46,7 @@ export const findFileViewerSearchProvider = (root: HTMLElement | null | undefine
     return direct;
   }
 
-  const host = root.querySelector<FileViewerSearchProviderHost>('[data-viewer-search-provider]');
+  const host = root.querySelector?.<FileViewerSearchProviderHost>('[data-viewer-search-provider]');
   return host
     ? searchProviderRegistry.get(host) || host.__flyfishViewerSearchProvider || null
     : null;
@@ -80,7 +80,7 @@ export const findFileViewerZoomProvider = (root: HTMLElement | null | undefined)
     return direct;
   }
 
-  const host = root.querySelector<FileViewerZoomProviderHost>('[data-viewer-zoom-provider]');
+  const host = root.querySelector?.<FileViewerZoomProviderHost>('[data-viewer-zoom-provider]');
   return host
     ? zoomProviderRegistry.get(host) || host.__flyfishViewerZoomProvider || null
     : null;
@@ -116,7 +116,7 @@ export const findFileViewerViewStateProvider = (root: HTMLElement | null | undef
   }
 
   const hosts = Array.from(
-    root.querySelectorAll<FileViewerViewStateProviderHost>('[data-viewer-view-state-provider]')
+    root.querySelectorAll?.<FileViewerViewStateProviderHost>('[data-viewer-view-state-provider]') || []
   );
   const customHost = hosts.find(host => host.dataset.viewerViewStateProvider !== 'generic');
   const genericHost = hosts.find(host => host.dataset.viewerViewStateProvider === 'generic');

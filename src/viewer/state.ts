@@ -6,6 +6,7 @@ import {
   type FileViewerI18nInput,
 } from '../i18n/messages';
 import type {
+  FileViewerMessageKey,
   FileViewerRenderStateKind,
   FileViewerRendererCategory,
   FileViewerStateDescriptor,
@@ -13,7 +14,11 @@ import type {
   RendererDefinition,
 } from '../contracts/types';
 
-export type FileViewerErrorMessageFormatter = (prefix: string, error: unknown) => string;
+export type FileViewerErrorMessageFormatter = (
+  prefix: string,
+  error: unknown,
+  i18n?: FileViewerI18nInput
+) => string;
 
 export const FILE_VIEWER_PREVIEW_MESSAGES = Object.freeze({
   downloading: '正在下载文件资源...',
@@ -277,27 +282,68 @@ export const createFileViewerUnsupportedState = (
   });
 };
 
-export const normalizeFileViewerErrorMessage = (error: unknown) => {
+const FILE_VIEWER_KNOWN_ERROR_MESSAGE_KEYS: Record<string, FileViewerMessageKey> = {
+  'Blob is not available in the current execution environment.': 'error.blobUnavailable',
+  'Unsupported file source input.': 'error.sourceUnsupported',
+  'Failed to read file as ArrayBuffer.': 'error.fileReadArrayBuffer',
+  'Failed to read file as data URL.': 'error.fileReadDataUrl',
+  'Failed to read file as text.': 'error.fileReadText',
+  'Unable to read image data URL.': 'error.imageDataUrlRead',
+  '文件不是有效的 DOCX/OOXML 压缩包，可能下载不完整或被服务端错误内容替换，请重新上传或检查文件源。': 'word.error.invalidDocx',
+  'ODF 文件缺少 content.xml': 'word.error.missingOdfContent',
+  'ODF 文件缺少 content.xml。': 'word.error.missingOdfContent',
+  'ODF XML 解析失败': 'word.error.odfXmlParseFailed',
+  'ODF XML 解析失败。': 'word.error.odfXmlParseFailed',
+  'OFD 文件中没有可渲染的文档': 'ofd.error.empty',
+  'OFD 文件解析失败': 'ofd.error.parseFailed',
+  'IndexedDB 不可用': 'archive.error.indexedDbUnavailable',
+  'Web Worker is not supported by this browser.': 'archive.error.workerUnsupported',
+};
+
+const resolveKnownFileViewerErrorMessage = (
+  message: string,
+  i18n?: FileViewerI18nInput
+) => {
+  const key = FILE_VIEWER_KNOWN_ERROR_MESSAGE_KEYS[message.trim()];
+  return key ? translateFileViewerMessage(i18n, key) : message;
+};
+
+export const normalizeFileViewerErrorMessage = (
+  error: unknown,
+  i18n?: FileViewerI18nInput
+) => {
   if (error instanceof Error) {
-    return error.message;
+    return resolveKnownFileViewerErrorMessage(error.message, i18n);
+  }
+  if (typeof error === 'string') {
+    return resolveKnownFileViewerErrorMessage(error, i18n);
+  }
+  if (error === undefined || error === null) {
+    return translateFileViewerMessage(i18n, 'error.unknown');
   }
   return String(error);
 };
 
-export const formatFileViewerErrorMessage: FileViewerErrorMessageFormatter = (prefix, error) => {
-  return `${prefix}：${normalizeFileViewerErrorMessage(error)}`;
+export const formatFileViewerErrorMessage: FileViewerErrorMessageFormatter = (prefix, error, i18n) => {
+  const detail = normalizeFileViewerErrorMessage(error, i18n);
+  if (!detail) {
+    return prefix;
+  }
+  return resolveFileViewerLocale(i18n) === 'zh-CN'
+    ? `${prefix}：${detail}`
+    : `${prefix}: ${detail}`;
 };
 
 export const createFileViewerErrorState = (
   extension = '',
-  error: unknown = '未知错误',
+  error: unknown = undefined,
   theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME,
   i18n?: FileViewerI18nInput
 ) => createFileViewerStateDescriptor({
   state: 'error',
   extension,
   title: translateFileViewerMessage(i18n, 'state.error.title'),
-  message: normalizeFileViewerErrorMessage(error),
+  message: normalizeFileViewerErrorMessage(error, i18n),
   theme,
   recoverable: true,
 });

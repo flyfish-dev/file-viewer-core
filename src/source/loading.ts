@@ -404,7 +404,7 @@ export const resolveFileViewerPreviewLoadErrorMessage = ({
     : kind === 'stream'
       ? translateFileViewerMessage(i18n, 'error.stream')
       : translateFileViewerMessage(i18n, 'error.load');
-  return formatErrorMessage(prefixes?.[kind] ?? fallbackPrefix, error);
+  return formatErrorMessage(prefixes?.[kind] ?? fallbackPrefix, error, i18n);
 };
 
 export const resolveFileViewerMissingRemoteDataErrorMessage = ({
@@ -576,8 +576,10 @@ export interface RunFileViewerPreviewSourceChangeInput {
 export interface RunFileViewerPreviewComponentUnmountInput {
   reason?: FileViewerLifecycleContext['reason'];
   onCancelPreview?: (reason: FileViewerLifecycleContext['reason']) => void;
+  onClearRenderedContent?: (reason: FileViewerLifecycleContext['reason']) => void;
   onResetLoading?: () => void;
   onStopZoomObserver?: () => void;
+  onStopFitObserver?: () => void;
   onStopViewStateObserver?: () => void;
 }
 
@@ -857,13 +859,19 @@ export const runFileViewerPreviewSourceChange = ({
 export const runFileViewerPreviewComponentUnmount = ({
   reason = 'component-unmount',
   onCancelPreview,
+  onClearRenderedContent,
   onResetLoading,
   onStopZoomObserver,
+  onStopFitObserver,
   onStopViewStateObserver,
 }: RunFileViewerPreviewComponentUnmountInput = {}): FileViewerPreviewComponentUnmountState => {
   onCancelPreview?.(reason);
+  if (!onCancelPreview) {
+    onClearRenderedContent?.(reason);
+  }
   onResetLoading?.();
   onStopZoomObserver?.();
+  onStopFitObserver?.();
   onStopViewStateObserver?.();
 
   return {

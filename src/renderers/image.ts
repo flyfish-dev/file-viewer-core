@@ -2,8 +2,10 @@ import {
   registerFileViewerZoomProvider,
   unregisterFileViewerZoomProvider,
 } from '../features/document/dom';
+import { createFileViewerTranslator } from '../i18n/messages';
 import { createFileViewerZoomChangeEmitter as createZoomChangeEmitter } from '../features/document/zoom';
 import type {
+  FileRenderContext,
   FileViewerRenderedInstance,
   FileViewerZoomState,
 } from '../contracts/types';
@@ -38,8 +40,8 @@ const imageStyle = `
 @media (max-width:767px){.image-stage{padding:12px}.image-lightbox{padding:16px}.image-lightbox button{top:12px;right:12px}}
 `;
 
-const createStyle = () => {
-  const style = document.createElement('style');
+const createStyle = (documentRef: Document) => {
+  const style = documentRef.createElement('style');
   style.textContent = imageStyle;
   return style;
 };
@@ -79,20 +81,24 @@ const roundImageScale = (value: number) => {
   return Number(value.toFixed(3));
 };
 
-const createLightbox = (src: string) => {
-  const lightbox = document.createElement('div');
+const createLightbox = (
+  documentRef: Document,
+  src: string,
+  t: ReturnType<typeof createFileViewerTranslator>
+) => {
+  const lightbox = documentRef.createElement('div');
   lightbox.className = 'image-lightbox';
   lightbox.hidden = true;
   lightbox.setAttribute('role', 'dialog');
   lightbox.setAttribute('aria-modal', 'true');
 
-  const image = document.createElement('img');
-  image.alt = 'Preview image';
+  const image = documentRef.createElement('img');
+  image.alt = t('image.lightbox.alt');
   image.src = src;
 
-  const closeButton = document.createElement('button');
+  const closeButton = documentRef.createElement('button');
   closeButton.type = 'button';
-  closeButton.setAttribute('aria-label', 'Close image preview');
+  closeButton.setAttribute('aria-label', t('image.lightbox.close'));
   closeButton.textContent = 'x';
 
   const close = () => {
@@ -124,8 +130,11 @@ const createLightbox = (src: string) => {
 export default async function renderImage(
   buffer: ArrayBuffer,
   target: HTMLDivElement,
-  type?: string
+  type?: string,
+  context?: FileRenderContext
 ): Promise<FileViewerRenderedInstance> {
+  const t = createFileViewerTranslator(context?.options);
+  const documentRef = target.ownerDocument || document;
   const src = await resolveImageUrl(buffer, type);
   let userZoom = 1;
   let fitScale = 1;
@@ -133,23 +142,22 @@ export default async function renderImage(
   let viewportHeight = 0;
   const zoomEmitter = createZoomChangeEmitter();
 
-  const root = document.createElement('div');
+  const root = documentRef.createElement('div');
   root.className = 'image-viewer';
   root.dataset.viewerZoomProvider = 'image';
 
-  const stage = document.createElement('div');
+  const stage = documentRef.createElement('div');
   stage.className = 'image-stage';
 
-  const image = document.createElement('img');
-  image.alt = '图片';
+  const image = documentRef.createElement('img');
+  image.alt = t('image.alt');
   image.src = src;
   stage.append(image);
   root.append(stage);
 
-  const lightbox = createLightbox(src);
+  const lightbox = createLightbox(documentRef, src, t);
   const openLightbox = () => lightbox.open();
   image.addEventListener('click', openLightbox);
-  document.body.append(lightbox.element);
 
   const getMinScale = () => Math.min(0.1, fitScale || 0.1);
   const clampScale = (value: number) => {
@@ -221,7 +229,8 @@ export default async function renderImage(
     subscribe: zoomEmitter.subscribe,
   });
 
-  target.replaceChildren(createStyle(), root);
+  target.replaceChildren(createStyle(documentRef), root);
+  (context?.surface?.shadowRoot || target).append(lightbox.element);
   updateViewportSize();
 
   return {

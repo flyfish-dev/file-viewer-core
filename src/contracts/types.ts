@@ -9,6 +9,8 @@ export type FileViewerThemeMode = 'light' | 'dark' | 'system';
 
 export type FileViewerLocale = 'auto' | 'zh-CN' | 'en-US' | (string & {});
 
+export type FileViewerStyleIsolation = 'auto' | 'shadow' | 'scoped' | 'none';
+
 export type FileViewerMessageKey =
   | 'toolbar.zoomGroup'
   | 'toolbar.zoomOut'
@@ -51,6 +53,13 @@ export type FileViewerMessageKey =
   | 'error.load'
   | 'error.stream'
   | 'error.beforeOperation'
+  | 'error.unknown'
+  | 'error.blobUnavailable'
+  | 'error.sourceUnsupported'
+  | 'error.fileReadArrayBuffer'
+  | 'error.fileReadDataUrl'
+  | 'error.fileReadText'
+  | 'error.imageDataUrlRead'
   | 'operation.download'
   | 'operation.print'
   | 'operation.exportHtml'
@@ -97,6 +106,22 @@ export type FileViewerMessageKey =
   | 'spreadsheet.state.rowsAndColumns'
   | 'spreadsheet.error.parseFailed'
   | 'spreadsheet.error.workerFailed'
+  | 'word.error.invalidDocx'
+  | 'word.error.missingOdfContent'
+  | 'word.error.odfXmlParseFailed'
+  | 'word.title.rtf'
+  | 'word.title.openDocumentPresentation'
+  | 'word.title.openDocumentText'
+  | 'word.page.fallback'
+  | 'word.page.empty'
+  | 'word.body'
+  | 'word.body.empty'
+  | 'ofd.state.loading'
+  | 'ofd.error.empty'
+  | 'ofd.error.parseFailed'
+  | 'presentation.state.loading'
+  | 'presentation.error.title'
+  | 'presentation.error.parseFailed'
   | 'archive.error.nestedUnsupported'
   | 'archive.loading.readingDirectory'
   | 'archive.loading.readingDirectoryHint'
@@ -133,6 +158,8 @@ export type FileViewerMessageKey =
   | 'archive.loading.initializingWorker'
   | 'archive.loading.initializingWorkerHint'
   | 'archive.error.workerInitFailed'
+  | 'archive.error.workerUnsupported'
+  | 'archive.error.indexedDbUnavailable'
   | 'archive.error.entryTooLarge'
   | 'archive.loading.extracting'
   | 'archive.loading.rendering'
@@ -403,11 +430,34 @@ export interface FileViewerI18nOptions {
 
 export type FileViewerFileRef = File | Blob | ArrayBuffer;
 
-export type FileViewerToolbarPosition = 'auto' | 'top' | 'bottom-right';
+export type FileViewerToolbarPosition = 'auto' | 'top' | 'top-center' | 'bottom-right';
+
+export type FileViewerFitMode =
+  | 'auto'
+  | 'contain'
+  | 'cover'
+  | 'width'
+  | 'height'
+  | 'actual'
+  | 'scale-down';
+
+export type FileViewerFitResize = 'until-interaction' | 'always' | 'initial';
+
+export interface FileViewerFitOptions {
+  mode?: FileViewerFitMode;
+  resize?: FileViewerFitResize;
+  padding?: number;
+  minScale?: number;
+  maxScale?: number;
+}
 
 export type FileViewerLifecyclePhase = 'load-start' | 'load-complete' | 'unload-start' | 'unload-complete';
 
 export type FileViewerOperationType = 'download' | 'print' | 'export-html' | 'zoom-in' | 'zoom-out' | 'zoom-reset';
+
+export type FileViewerToolbarItem = 'search' | 'zoom' | 'download' | 'print' | 'exportHtml' | 'export-html';
+
+export type FileViewerResolvedToolbarItem = 'search' | 'zoom' | 'download' | 'print' | 'exportHtml';
 
 export type FileViewerToolbarActionMap = Partial<Record<FileViewerOperationType, boolean>>;
 
@@ -453,6 +503,8 @@ export interface FileViewerToolbarOptions {
   exportHtml?: boolean;
   zoom?: boolean;
   search?: boolean;
+  /** Built-in toolbar group order. Missing entries keep their default relative order. */
+  order?: FileViewerToolbarItem[];
   /** Controls which built-in toolbar actions are displayed without disabling controller APIs. */
   items?: FileViewerToolbarActionMap;
   /** Hard operation permission map. False values block both built-in toolbar and public API calls. */
@@ -577,6 +629,7 @@ export interface FileRenderContext {
   url?: string;
   streamUrl?: string;
   options?: FileViewerOptions;
+  surface?: RenderSurface;
   registerExportAdapter?: (adapter: FileRenderExportAdapter | null) => void;
   onProgressiveRender?: () => void;
   renderNestedBuffer?: (
@@ -751,6 +804,7 @@ export interface FileViewerDrawingOptions {
 
 export type FileViewerCadRenderer = 'auto' | 'webgl' | 'canvas2d';
 export type FileViewerCadDwfLineWeightMode = 'adaptive' | 'physical' | 'hairline';
+export type FileViewerCadFitMode = 'best' | 'native';
 
 export interface FileViewerCadOptions {
   wasmPath?: string;
@@ -765,6 +819,16 @@ export interface FileViewerCadOptions {
   maxInsertDepth?: number;
   keepRaw?: boolean;
   preloadDwg?: boolean;
+  /**
+   * `best` fits the first view to visible drawing geometry and ignores common
+   * CAD outliers such as paper-space frames or far-away markers. `native`
+   * preserves the raw bounds reported by the underlying CAD renderer.
+   */
+  fitMode?: FileViewerCadFitMode;
+  /**
+   * Fraction of the CAD viewport used by fit-to-view. Defaults to 0.92.
+   */
+  fitPadding?: number;
   dwfPreferWebgl?: boolean;
   dwfPreferWasm?: boolean;
   dwfBackground?: string;
@@ -814,6 +878,12 @@ export interface FileViewerAiOptions {
 
 export interface FileViewerOptions {
   theme?: FileViewerThemeMode;
+  /**
+   * Controls how aggressively the viewer protects its DOM and CSS from the
+   * host page. `auto` keeps framework integrations compatible while allowing
+   * Web Component integrations to opt into Shadow DOM by default.
+   */
+  styleIsolation?: FileViewerStyleIsolation;
   /**
    * Viewer UI language. `auto` follows the browser language, Chinese browsers
    * resolve to `zh-CN`, and all other languages currently resolve to `en-US`.
@@ -877,6 +947,11 @@ export interface FileViewerOptions {
   toolbar?: boolean | FileViewerToolbarOptions;
   search?: boolean | FileViewerSearchOptions;
   ai?: boolean | FileViewerAiOptions;
+  /**
+   * Explicit content fitting strategy. When omitted, each renderer keeps its
+   * historical first-screen behavior for backward compatibility.
+   */
+  fit?: FileViewerFitMode | FileViewerFitOptions;
   /**
    * Initial renderer view position used after the document becomes ready.
    *
@@ -968,11 +1043,33 @@ export interface FileViewerZoomState {
   maxScale?: number;
 }
 
+export interface FileViewerFitRequest extends Required<Pick<FileViewerFitOptions, 'mode' | 'resize' | 'padding'>> {
+  minScale?: number;
+  maxScale?: number;
+  source: FileViewerViewStateChangeSource;
+  reason: 'initial' | 'resize' | 'api' | 'retry';
+  viewportWidth: number;
+  viewportHeight: number;
+  container?: HTMLElement | null;
+}
+
+export interface FileViewerFitResult {
+  applied: boolean;
+  mode: FileViewerFitMode;
+  resize: FileViewerFitResize;
+  scale?: number;
+  source?: FileViewerViewStateChangeSource;
+  reason?: string;
+  provider?: 'view-state' | 'zoom' | 'none' | (string & {});
+  state?: FileViewerViewState;
+}
+
 export interface FileViewerZoomProvider {
   zoomIn: () => FileViewerZoomState | Promise<FileViewerZoomState>;
   zoomOut: () => FileViewerZoomState | Promise<FileViewerZoomState>;
   resetZoom: () => FileViewerZoomState | Promise<FileViewerZoomState>;
   setZoom?: (scale: number) => FileViewerZoomState | Promise<FileViewerZoomState>;
+  fit?: (request: FileViewerFitRequest) => FileViewerFitResult | Promise<FileViewerFitResult>;
   getState: () => FileViewerZoomState;
   subscribe?: (listener: () => void) => () => void;
 }
@@ -1023,6 +1120,7 @@ export type FileViewerViewStateChangeAction =
   | 'zoom-in'
   | 'zoom-out'
   | 'zoom-reset'
+  | 'fit'
   | 'rotation-change'
   | 'rotate-left'
   | 'rotate-right'
@@ -1050,6 +1148,7 @@ export interface FileViewerViewStateProvider {
     state: FileViewerViewState,
     options?: FileViewerApplyViewStateOptions
   ) => FileViewerViewState | Promise<FileViewerViewState>;
+  fit?: (request: FileViewerFitRequest) => FileViewerFitResult | Promise<FileViewerFitResult>;
   subscribe?: (listener: (change: FileViewerViewStateChange) => void) => () => void;
 }
 
@@ -1103,6 +1202,10 @@ export interface FileViewerDocumentChunk {
 export interface FileViewerComponentProps {
   file?: FileViewerFileRef;
   url?: string;
+  name?: string;
+  filename?: string;
+  type?: string;
+  size?: number;
   options?: FileViewerOptions;
 }
 
@@ -1118,6 +1221,7 @@ export interface FileViewerComponentEventMap {
   'location-change': FileViewerDocumentAnchor | null;
   'zoom-change': FileViewerZoomState;
   'view-state-change': FileViewerViewStateChange;
+  'fit-change': FileViewerFitResult;
 }
 
 export type FileViewerEventType = keyof FileViewerComponentEventMap;
@@ -1143,15 +1247,18 @@ export interface FileViewerComponentEmits {
   (event: 'location-change', anchor: FileViewerComponentEventMap['location-change']): void;
   (event: 'zoom-change', state: FileViewerComponentEventMap['zoom-change']): void;
   (event: 'view-state-change', change: FileViewerComponentEventMap['view-state-change']): void;
+  (event: 'fit-change', result: FileViewerComponentEventMap['fit-change']): void;
 }
 
 export interface FileViewerPublicApi {
+  destroy(): void;
   downloadOriginalFile(): Promise<void>;
   printRenderedHtml(): Promise<void>;
   exportRenderedHtml(): Promise<void>;
   zoomIn(): Promise<FileViewerZoomState>;
   zoomOut(): Promise<FileViewerZoomState>;
   resetZoom(): Promise<FileViewerZoomState>;
+  fitToView(fit?: FileViewerFitMode | FileViewerFitOptions): Promise<FileViewerFitResult>;
   getZoomState(): FileViewerZoomState;
   getViewState(): FileViewerViewState | null;
   applyViewState(
@@ -1210,8 +1317,10 @@ export interface NormalizedFileViewerSource {
 }
 
 export interface RenderSurface {
+  host?: HTMLElement;
   container: HTMLElement;
   shadowRoot?: ShadowRoot;
+  styleIsolation?: Exclude<FileViewerStyleIsolation, 'auto'>;
 }
 
 export interface RendererCapability {
@@ -1339,6 +1448,7 @@ export interface FileViewerInstance {
   zoomIn(): Promise<FileViewerZoomState>;
   zoomOut(): Promise<FileViewerZoomState>;
   resetZoom(): Promise<FileViewerZoomState>;
+  fitToView(fit?: FileViewerFitMode | FileViewerFitOptions): Promise<FileViewerFitResult>;
   getZoomState(): FileViewerZoomState;
   getViewState(): FileViewerViewState | null;
   applyViewState(

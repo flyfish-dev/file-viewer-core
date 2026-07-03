@@ -41,12 +41,15 @@ import {
 
 const viewer = createViewer(document.querySelector('#viewer')!, {
   options: {
-    toolbar: true
+    toolbar: true,
+    styleIsolation: 'shadow'
   }
 })
 
 await viewer.load({ url: '/files/report.pdf' })
 ```
+
+`options.styleIsolation` accepts `auto`, `shadow`, `scoped`, or `none`. Use `shadow` when a custom host or framework wrapper needs a ShadowRoot-backed render surface. Core passes the resolved `surface` to renderer `load(context)`, so custom renderers should inject styles into `context.surface.shadowRoot` or the renderer container instead of `document.head`, and should mount overlays inside the same isolated surface when possible.
 
 The root `@file-viewer/core` entry remains the complete compatibility entry for existing integrations. New component packages should prefer the narrowest explicit entry point they need: `headless` for contracts and build-time helpers, `browser` for real browser preview.
 

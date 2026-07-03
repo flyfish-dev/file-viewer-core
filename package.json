@@ -1,6 +1,6 @@
 {
   "name": "@file-viewer/core",
-  "version": "2.1.16",
+  "version": "2.1.18",
   "private": false,
   "type": "module",
   "description": "Framework-neutral modular TypeScript core for Flyfish File Viewer renderer orchestration, lifecycle APIs, search, zoom, print, and export",
@@ -34,7 +34,7 @@
   },
   "funding": {
     "type": "individual",
-    "url": "https://dev.flyfish.group/shop"
+    "url": "https://dev.flyfish.group/donate?source=npm"
   },
   "homepage": "https://github.com/flyfish-dev/file-viewer-core",
   "main": "./dist/index.js",

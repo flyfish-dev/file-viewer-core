@@ -21,6 +21,9 @@ import type {
   FileRenderContext,
   FileRenderHandler,
   FileViewerLifecycleContext,
+  FileViewerOptions,
+  FileViewerStyleIsolation,
+  RenderSurface,
   RendererDefinition,
   RendererLoadContext,
   RendererLoader,
@@ -100,6 +103,26 @@ export interface CreateFileViewerRenderTargetOptions {
   className?: string;
 }
 
+export type ResolvedFileViewerStyleIsolation = Exclude<FileViewerStyleIsolation, 'auto'>;
+
+export interface CreateFileViewerRenderSurfaceOptions extends CreateFileViewerRenderTargetOptions {
+  styleIsolation?: FileViewerStyleIsolation;
+}
+
+export interface FileViewerStyleHandle {
+  node?: HTMLStyleElement;
+  sheet?: CSSStyleSheet;
+  remove(): void;
+}
+
+export interface AppendFileViewerStyleOptions {
+  /**
+   * Constructable stylesheets are useful for long-lived ShadowRoots. Keep this
+   * opt-in so renderer styles still clean up naturally with their target node.
+   */
+  adoptedStyleSheet?: boolean;
+}
+
 export interface ResetFileViewerRenderSurfaceInput<
   Session extends RendererSession = RendererSession,
 > {
@@ -144,7 +167,9 @@ export interface RunFileViewerRenderSurfaceMountInput<
   waitForPaint?: () => Promise<unknown> | unknown;
   disposeSession?: (session?: Session | null) => void;
   onStartZoomObserver?: () => void;
+  onStartFitObserver?: () => void;
   onStartViewStateObserver?: () => void;
+  onApplyInitialFit?: () => Promise<unknown> | unknown;
   onRefreshDocumentIndex?: () => Promise<unknown> | unknown;
   onRefreshZoomProvider?: () => void;
   onRefreshViewStateProvider?: () => void;
@@ -168,6 +193,7 @@ export interface RunFileViewerRenderSurfaceClearInput<
   onClearDocumentState?: () => void;
   onStopZoomObserver?: () => void;
   onClearZoomProvider?: () => void;
+  onStopFitObserver?: () => void;
   onStopViewStateObserver?: () => void;
   onClearViewStateProvider?: () => void;
 }
@@ -223,15 +249,71 @@ export interface CreateFileViewerRenderSurfaceActionHandlersInput<
   onStartZoomObserver?: () => void;
   onStopZoomObserver?: () => void;
   onClearZoomProvider?: () => void;
+  onStartFitObserver?: () => void;
+  onStopFitObserver?: () => void;
   onStartViewStateObserver?: () => void;
   onStopViewStateObserver?: () => void;
   onClearViewStateProvider?: () => void;
+  onApplyInitialFit?: () => Promise<unknown> | unknown;
   onRefreshDocumentIndex?: () => Promise<unknown> | unknown;
   onRefreshZoomProvider?: () => void;
   onRefreshViewStateProvider?: () => void;
 }
 
 export const DEFAULT_FILE_VIEWER_RENDER_TARGET_CLASS = 'file-render';
+
+const FILE_VIEWER_RENDER_HOST_CLASS = 'file-render-host';
+const FILE_VIEWER_SHADOW_RENDER_TARGET_CLASS = 'file-render-shadow-target';
+
+export const isFileViewerShadowRoot = (value: unknown): value is ShadowRoot => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  if (typeof ShadowRoot !== 'undefined' && value instanceof ShadowRoot) {
+    return true;
+  }
+  return (value as { nodeType?: number; host?: unknown }).nodeType === 11 &&
+    !!(value as { host?: unknown }).host;
+};
+
+const getElementRootNode = (element: HTMLElement | null | undefined) => {
+  return element?.getRootNode?.() || null;
+};
+
+export const getFileViewerShadowRootForNode = (
+  node: Node | null | undefined
+): ShadowRoot | null => {
+  if (!node) {
+    return null;
+  }
+  if (isFileViewerShadowRoot(node)) {
+    return node;
+  }
+  const root = node.getRootNode?.();
+  return isFileViewerShadowRoot(root) ? root : null;
+};
+
+export const normalizeFileViewerStyleIsolation = (
+  isolation?: FileViewerStyleIsolation
+): FileViewerStyleIsolation => {
+  return isolation === 'shadow' || isolation === 'scoped' || isolation === 'none'
+    ? isolation
+    : 'auto';
+};
+
+export const resolveFileViewerStyleIsolation = (
+  options: Pick<FileViewerOptions, 'styleIsolation'> | undefined,
+  container?: HTMLElement | null
+): ResolvedFileViewerStyleIsolation => {
+  const isolation = normalizeFileViewerStyleIsolation(options?.styleIsolation);
+  if (isolation === 'auto') {
+    return isFileViewerShadowRoot(getElementRootNode(container)) ? 'scoped' : 'none';
+  }
+  if (isolation === 'shadow' && isFileViewerShadowRoot(getElementRootNode(container))) {
+    return 'scoped';
+  }
+  return isolation;
+};
 
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> => {
   return !!value &&
@@ -255,8 +337,100 @@ export const createFileViewerRenderTarget = (
 ) => {
   const target = container.ownerDocument.createElement('div');
   target.className = options.className || DEFAULT_FILE_VIEWER_RENDER_TARGET_CLASS;
+  target.style.width = '100%';
+  target.style.minWidth = '0';
+  target.style.minHeight = '0';
   container.appendChild(target);
   return target;
+};
+
+export const createFileViewerRenderSurface = (
+  container: HTMLElement,
+  options: CreateFileViewerRenderSurfaceOptions = {}
+): RenderSurface => {
+  const styleIsolation = resolveFileViewerStyleIsolation({
+    styleIsolation: options.styleIsolation,
+  }, container);
+  const className = options.className || DEFAULT_FILE_VIEWER_RENDER_TARGET_CLASS;
+
+  if (styleIsolation === 'shadow' && typeof container.attachShadow === 'function') {
+    const host = container.ownerDocument.createElement('div');
+    host.className = `${FILE_VIEWER_RENDER_HOST_CLASS} ${className}`;
+    host.dataset.fileViewerStyleIsolation = 'shadow';
+    host.style.width = '100%';
+    host.style.minWidth = '0';
+    host.style.minHeight = '0';
+    const shadowRoot = host.attachShadow({ mode: 'open' });
+    const target = container.ownerDocument.createElement('div');
+    target.className = `${FILE_VIEWER_SHADOW_RENDER_TARGET_CLASS} ${className}`;
+    target.dataset.fileViewerStyleIsolation = 'shadow';
+    target.style.width = '100%';
+    target.style.minWidth = '0';
+    target.style.minHeight = '0';
+    shadowRoot.appendChild(target);
+    container.appendChild(host);
+    return {
+      host,
+      container: target,
+      shadowRoot,
+      styleIsolation,
+    };
+  }
+
+  const target = createFileViewerRenderTarget(container, { className });
+  target.dataset.fileViewerStyleIsolation = styleIsolation;
+  return {
+    host: target,
+    container: target,
+    styleIsolation,
+  };
+};
+
+const appendStyleElement = (
+  target: HTMLElement | ShadowRoot,
+  css: string
+): HTMLStyleElement => {
+  const documentRef = target.ownerDocument;
+  const style = documentRef.createElement('style');
+  style.textContent = css;
+  target.appendChild(style);
+  return style;
+};
+
+const canUseAdoptedStyleSheet = (
+  root: ShadowRoot
+): root is ShadowRoot & { adoptedStyleSheets: CSSStyleSheet[] } => {
+  return 'adoptedStyleSheets' in root &&
+    typeof CSSStyleSheet !== 'undefined' &&
+    typeof CSSStyleSheet.prototype.replaceSync === 'function';
+};
+
+export const appendFileViewerStyle = (
+  target: HTMLElement | ShadowRoot,
+  css: string,
+  options: AppendFileViewerStyleOptions = {}
+): FileViewerStyleHandle => {
+  const shadowRoot = getFileViewerShadowRootForNode(target);
+  if (options.adoptedStyleSheet && shadowRoot && canUseAdoptedStyleSheet(shadowRoot)) {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(css);
+    shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet];
+    return {
+      sheet,
+      remove() {
+        shadowRoot.adoptedStyleSheets = shadowRoot.adoptedStyleSheets.filter(item => item !== sheet);
+      },
+    };
+  }
+
+  const styleTarget = isFileViewerShadowRoot(target) ? target : target;
+  const node = appendStyleElement(styleTarget, css);
+  return {
+    node,
+    remove() {
+      node.remove();
+    },
+  };
 };
 
 export const removeFileViewerRenderTarget = (
@@ -488,6 +662,7 @@ export const runFileViewerRenderSurfaceClear = <
   onClearDocumentState,
   onStopZoomObserver,
   onClearZoomProvider,
+  onStopFitObserver,
   onStopViewStateObserver,
   onClearViewStateProvider,
 }: RunFileViewerRenderSurfaceClearInput<Session, UnloadContext>): FileViewerRenderSurfaceClearState<Session, UnloadContext> => {
@@ -506,6 +681,7 @@ export const runFileViewerRenderSurfaceClear = <
     onClearDocumentState?.();
     onStopZoomObserver?.();
     onClearZoomProvider?.();
+    onStopFitObserver?.();
     onStopViewStateObserver?.();
     onClearViewStateProvider?.();
   }
@@ -537,7 +713,9 @@ export const runFileViewerRenderSurfaceMount = async <
   waitForPaint = waitForFileViewerNextPaint,
   disposeSession = disposeFileViewerRendererSession,
   onStartZoomObserver,
+  onStartFitObserver,
   onStartViewStateObserver,
+  onApplyInitialFit,
   onRefreshDocumentIndex,
   onRefreshZoomProvider,
   onRefreshViewStateProvider,
@@ -555,6 +733,7 @@ export const runFileViewerRenderSurfaceMount = async <
 
   const target = createFileViewerRenderTarget(container);
   onStartZoomObserver?.();
+  onStartFitObserver?.();
   onStartViewStateObserver?.();
   await waitForContainer?.();
   await waitForPaint();
@@ -599,6 +778,11 @@ export const runFileViewerRenderSurfaceMount = async <
     void onRefreshDocumentIndex?.();
     onRefreshZoomProvider?.();
     onRefreshViewStateProvider?.();
+    if (onApplyInitialFit) {
+      await onApplyInitialFit();
+      onRefreshZoomProvider?.();
+      onRefreshViewStateProvider?.();
+    }
     return session;
   } catch (error) {
     removeFileViewerRenderTarget(container, target);
@@ -625,9 +809,12 @@ export const createFileViewerRenderSurfaceActionHandlers = <
   onStartZoomObserver,
   onStopZoomObserver,
   onClearZoomProvider,
+  onStartFitObserver,
+  onStopFitObserver,
   onStartViewStateObserver,
   onStopViewStateObserver,
   onClearViewStateProvider,
+  onApplyInitialFit,
   onRefreshDocumentIndex,
   onRefreshZoomProvider,
   onRefreshViewStateProvider,
@@ -666,6 +853,7 @@ export const createFileViewerRenderSurfaceActionHandlers = <
       onClearDocumentState,
       onStopZoomObserver,
       onClearZoomProvider,
+      onStopFitObserver,
       onStopViewStateObserver,
       onClearViewStateProvider,
     });
@@ -694,7 +882,9 @@ export const createFileViewerRenderSurfaceActionHandlers = <
       waitForPaint,
       disposeSession: destroyRenderSession,
       onStartZoomObserver,
+      onStartFitObserver,
       onStartViewStateObserver,
+      onApplyInitialFit,
       onRefreshDocumentIndex,
       onRefreshZoomProvider,
       onRefreshViewStateProvider,
@@ -711,6 +901,7 @@ export const createFileViewerRenderSurfaceActionHandlers = <
 
 export const buildFileRenderContextFromLoadContext = ({
   source,
+  surface,
   options,
   registerExportAdapter,
   renderContext,
@@ -719,6 +910,7 @@ export const buildFileRenderContextFromLoadContext = ({
   url: source.url,
   streamUrl: source.url,
   options,
+  surface,
   registerExportAdapter,
   ...renderContext,
 });

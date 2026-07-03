@@ -203,7 +203,8 @@ export const resolveFileViewerOperationActionErrorMessage = ({
   return formatErrorMessage(
     prefixes?.[context.operation] ??
       translateFileViewerMessage(i18n, FILE_VIEWER_OPERATION_ACTION_ERROR_MESSAGE_KEYS[context.operation]),
-    context.error
+    context.error,
+    i18n
   );
 };
 
