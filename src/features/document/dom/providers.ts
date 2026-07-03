@@ -16,9 +16,36 @@ export interface FileViewerViewStateProviderHost extends HTMLElement {
   __flyfishViewerViewStateProvider?: FileViewerViewStateProvider;
 }
 
+type FileViewerProviderSearchRoot = HTMLElement | ShadowRoot | null | undefined;
+
 const searchProviderRegistry = new WeakMap<HTMLElement, FileViewerSearchProvider>();
 const zoomProviderRegistry = new WeakMap<HTMLElement, FileViewerZoomProvider>();
 const viewStateProviderRegistry = new WeakMap<HTMLElement, FileViewerViewStateProvider>();
+
+const isProviderElement = (root: FileViewerProviderSearchRoot): root is HTMLElement => {
+  return !!root && (root as Node).nodeType === 1;
+};
+
+const queryProviderHosts = <Host extends HTMLElement>(
+  root: FileViewerProviderSearchRoot,
+  selector: string
+): Host[] => {
+  if (!root?.querySelectorAll) {
+    return [];
+  }
+
+  const hosts = Array.from(root.querySelectorAll<Host>(selector));
+  if (isProviderElement(root) && root.shadowRoot) {
+    hosts.push(...queryProviderHosts<Host>(root.shadowRoot, selector));
+  }
+  const elements = Array.from(root.querySelectorAll<HTMLElement>('*'));
+  for (const element of elements) {
+    if (element.shadowRoot) {
+      hosts.push(...queryProviderHosts<Host>(element.shadowRoot, selector));
+    }
+  }
+  return hosts;
+};
 
 export const registerFileViewerSearchProvider = (
   host: HTMLElement,
@@ -36,17 +63,19 @@ export const unregisterFileViewerSearchProvider = (host: HTMLElement | null | un
   delete (host as FileViewerSearchProviderHost).__flyfishViewerSearchProvider;
 };
 
-export const findFileViewerSearchProvider = (root: HTMLElement | null | undefined) => {
+export const findFileViewerSearchProvider = (root: FileViewerProviderSearchRoot) => {
   if (!root) {
     return null;
   }
 
-  const direct = searchProviderRegistry.get(root) || (root as FileViewerSearchProviderHost).__flyfishViewerSearchProvider;
+  const direct = isProviderElement(root)
+    ? searchProviderRegistry.get(root) || (root as FileViewerSearchProviderHost).__flyfishViewerSearchProvider
+    : null;
   if (direct) {
     return direct;
   }
 
-  const host = root.querySelector?.<FileViewerSearchProviderHost>('[data-viewer-search-provider]');
+  const host = queryProviderHosts<FileViewerSearchProviderHost>(root, '[data-viewer-search-provider]')[0];
   return host
     ? searchProviderRegistry.get(host) || host.__flyfishViewerSearchProvider || null
     : null;
@@ -70,17 +99,19 @@ export const unregisterFileViewerZoomProvider = (host: HTMLElement | null | unde
   delete (host as FileViewerZoomProviderHost).__flyfishViewerZoomProvider;
 };
 
-export const findFileViewerZoomProvider = (root: HTMLElement | null | undefined) => {
+export const findFileViewerZoomProvider = (root: FileViewerProviderSearchRoot) => {
   if (!root) {
     return null;
   }
 
-  const direct = zoomProviderRegistry.get(root) || (root as FileViewerZoomProviderHost).__flyfishViewerZoomProvider;
+  const direct = isProviderElement(root)
+    ? zoomProviderRegistry.get(root) || (root as FileViewerZoomProviderHost).__flyfishViewerZoomProvider
+    : null;
   if (direct) {
     return direct;
   }
 
-  const host = root.querySelector?.<FileViewerZoomProviderHost>('[data-viewer-zoom-provider]');
+  const host = queryProviderHosts<FileViewerZoomProviderHost>(root, '[data-viewer-zoom-provider]')[0];
   return host
     ? zoomProviderRegistry.get(host) || host.__flyfishViewerZoomProvider || null
     : null;
@@ -104,20 +135,20 @@ export const unregisterFileViewerViewStateProvider = (host: HTMLElement | null |
   delete (host as FileViewerViewStateProviderHost).__flyfishViewerViewStateProvider;
 };
 
-export const findFileViewerViewStateProvider = (root: HTMLElement | null | undefined) => {
+export const findFileViewerViewStateProvider = (root: FileViewerProviderSearchRoot) => {
   if (!root) {
     return null;
   }
 
-  const direct = viewStateProviderRegistry.get(root) ||
-    (root as FileViewerViewStateProviderHost).__flyfishViewerViewStateProvider;
-  if (direct && root.dataset.viewerViewStateProvider !== 'generic') {
+  const direct = isProviderElement(root)
+    ? viewStateProviderRegistry.get(root) ||
+      (root as FileViewerViewStateProviderHost).__flyfishViewerViewStateProvider
+    : null;
+  if (direct && (!isProviderElement(root) || root.dataset.viewerViewStateProvider !== 'generic')) {
     return direct;
   }
 
-  const hosts = Array.from(
-    root.querySelectorAll?.<FileViewerViewStateProviderHost>('[data-viewer-view-state-provider]') || []
-  );
+  const hosts = queryProviderHosts<FileViewerViewStateProviderHost>(root, '[data-viewer-view-state-provider]');
   const customHost = hosts.find(host => host.dataset.viewerViewStateProvider !== 'generic');
   const genericHost = hosts.find(host => host.dataset.viewerViewStateProvider === 'generic');
   const host = customHost || genericHost;

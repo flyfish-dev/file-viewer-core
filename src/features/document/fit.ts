@@ -258,6 +258,13 @@ const withProviderResult = (
   state: result?.state,
 });
 
+const isRetriableFitReason = (reason: string | undefined) => {
+  return reason === 'pending' ||
+    reason === 'retry' ||
+    reason === 'image-not-ready' ||
+    reason === 'unmeasurable';
+};
+
 const readViewportSize = (root: HTMLElement) => {
   const rect = root.getBoundingClientRect?.();
   return {
@@ -373,6 +380,7 @@ export const createFileViewerFitController = ({
     };
 
     const viewStateProvider = findFileViewerViewStateProvider(currentRoot);
+    let lastProviderResult: FileViewerFitResult | null = null;
     if (viewStateProvider?.fit) {
       const result = withProviderResult(
         await viewStateProvider.fit(request),
@@ -384,6 +392,7 @@ export const createFileViewerFitController = ({
         onFit?.(result);
         return result;
       }
+      lastProviderResult = result;
     }
 
     const zoomProvider = findFileViewerZoomProvider(currentRoot);
@@ -398,12 +407,13 @@ export const createFileViewerFitController = ({
         onFit?.(result);
         return result;
       }
+      lastProviderResult = result;
     }
 
     const noop = createNoopFitResult(normalized, viewStateProvider || zoomProvider
       ? 'unsupported'
       : 'no-provider', source);
-    if (noop.reason === 'no-provider') {
+    if (noop.reason === 'no-provider' || isRetriableFitReason(lastProviderResult?.reason)) {
       scheduleRetry(fit, source, reason);
     }
     return noop;
