@@ -4,6 +4,7 @@ import type {
   FileViewerOptions,
   FileViewerThemeMode,
   FileViewerToolbarOptions,
+  FileViewerUiDensity,
 } from '../contracts/types';
 
 type JsonPrimitive = string | number | boolean | null;
@@ -104,6 +105,16 @@ export const normalizeFileViewerTheme = (
 ): FileViewerThemeMode => {
   return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'system';
 };
+
+export const normalizeFileViewerUiDensity = (
+  density: FileViewerUiDensity | undefined
+): FileViewerUiDensity => {
+  return density === 'compact' ? 'compact' : 'comfortable';
+};
+
+export const resolveFileViewerUiDensity = (
+  options?: Pick<FileViewerOptions, 'ui'> | null
+): FileViewerUiDensity => normalizeFileViewerUiDensity(options?.ui?.density);
 
 export const sanitizeFileViewerOptions = (
   options?: FileViewerOptions | FileViewerSerializableOptions | null

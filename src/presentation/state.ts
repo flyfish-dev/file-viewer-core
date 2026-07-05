@@ -1,11 +1,12 @@
 import { normalizeFileViewerToolbar } from '../lifecycle/operations';
-import { normalizeFileViewerTheme } from '../config/options';
+import { normalizeFileViewerTheme, resolveFileViewerUiDensity } from '../config/options';
 import { getExtension, resolveFileViewerSourceFilename } from '../source';
 import type {
   FileViewerFileRef,
   FileViewerOptions,
   FileViewerThemeMode,
   FileViewerToolbarOptions,
+  FileViewerUiDensity,
 } from '../contracts/types';
 
 export interface ResolveFileViewerPresentationStateInput {
@@ -20,6 +21,7 @@ export interface FileViewerPresentationState {
   extension: string;
   toolbar: FileViewerToolbarOptions;
   theme: FileViewerThemeMode;
+  density: FileViewerUiDensity;
 }
 
 export const resolveFileViewerPresentationState = ({
@@ -39,5 +41,6 @@ export const resolveFileViewerPresentationState = ({
     extension: getExtension(displayFilename),
     toolbar: normalizeFileViewerToolbar(options),
     theme: normalizeFileViewerTheme(options?.theme),
+    density: resolveFileViewerUiDensity(options),
   };
 };

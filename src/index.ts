@@ -691,8 +691,10 @@ export type {
 } from './lifecycle/facade';
 export {
   getFileViewerOptionsSearchParam,
+  normalizeFileViewerUiDensity,
   normalizeFileViewerTheme,
   parseFileViewerOptions,
+  resolveFileViewerUiDensity,
   sanitizeFileViewerOptions,
   serializeFileViewerOptions,
   setFileViewerOptionsSearchParam,
@@ -1010,6 +1012,9 @@ export type {
 } from './platform/worker';
 export type {
   FileViewerAiOptions,
+  FileViewerArchiveEntryActionContext,
+  FileViewerArchiveEntryActionPolicy,
+  FileViewerArchiveEntryActionsOptions,
   FileViewerArchivePasswordRequestContext,
   FileViewerArchivePasswordRequestReason,
   FileViewerArchiveOptions,
@@ -1095,6 +1100,8 @@ export type {
   FileViewerToolbarOptions,
   FileViewerToolbarPosition,
   FileViewerResolvedToolbarItem,
+  FileViewerUiDensity,
+  FileViewerUiOptions,
   FileViewerTypstOptions,
   FileViewerViewScrollState,
   FileViewerViewState,

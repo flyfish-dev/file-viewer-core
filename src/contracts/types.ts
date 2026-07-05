@@ -516,6 +516,28 @@ export interface FileViewerToolbarOptions {
   beforeExportHtml?: FileViewerBeforeOperation;
 }
 
+export interface FileViewerArchiveEntryActionContext {
+  path: string;
+  name: string;
+  extension: string;
+  size: number;
+  lastModified?: number;
+  depth: number;
+  previewable: boolean;
+}
+
+export type FileViewerArchiveEntryActionPolicy =
+  | boolean
+  | ((entry: FileViewerArchiveEntryActionContext) => boolean);
+
+export interface FileViewerArchiveEntryActionsOptions {
+  /**
+   * Controls the download button for files opened from inside an archive.
+   * The viewer-level original-file download remains controlled by toolbar options.
+   */
+  download?: FileViewerArchiveEntryActionPolicy;
+}
+
 export interface FileViewerArchiveOptions {
   workerUrl?: string;
   wasmUrl?: string;
@@ -523,6 +545,7 @@ export interface FileViewerArchiveOptions {
   cache?: boolean;
   maxArchiveSize?: number;
   maxEntryPreviewSize?: number;
+  entryActions?: FileViewerArchiveEntryActionsOptions;
   /**
    * Optional archive password. It is used for the first encrypted archive
    * attempt; if it is wrong, the built-in password dialog or requestPassword
@@ -876,6 +899,16 @@ export interface FileViewerAiOptions {
   chunkOverlap?: number;
 }
 
+export type FileViewerUiDensity = 'comfortable' | 'compact';
+
+export interface FileViewerUiOptions {
+  /**
+   * Controls spacing density for viewer chrome such as toolbars, headers,
+   * archive lists, badges, search inputs, and compact action clusters.
+   */
+  density?: FileViewerUiDensity;
+}
+
 export interface FileViewerOptions {
   theme?: FileViewerThemeMode;
   /**
@@ -944,6 +977,7 @@ export interface FileViewerOptions {
   presets?: FileViewerRendererPresetInput;
   renderers?: FileViewerRendererPluginInput;
   watermark?: boolean | FileViewerWatermarkOptions;
+  ui?: FileViewerUiOptions;
   toolbar?: boolean | FileViewerToolbarOptions;
   search?: boolean | FileViewerSearchOptions;
   ai?: boolean | FileViewerAiOptions;
