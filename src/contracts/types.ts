@@ -7,6 +7,8 @@ export type FileViewerSourceKind = 'file' | 'url' | 'buffer' | 'empty';
 
 export type FileViewerThemeMode = 'light' | 'dark' | 'system';
 
+export type FileViewerResolvedThemeMode = Exclude<FileViewerThemeMode, 'system'>;
+
 export type FileViewerLocale = 'auto' | 'zh-CN' | 'en-US' | (string & {});
 
 export type FileViewerStyleIsolation = 'auto' | 'shadow' | 'scoped' | 'none';
@@ -20,6 +22,14 @@ export type FileViewerMessageKey =
   | 'toolbar.downloadTitle'
   | 'toolbar.print'
   | 'toolbar.printTitle'
+  | 'toolbar.printDirect'
+  | 'toolbar.printMask'
+  | 'toolbar.printMaskTitle'
+  | 'toolbar.printMaskAdd'
+  | 'toolbar.printMaskClear'
+  | 'toolbar.printMaskCancel'
+  | 'toolbar.printMaskConfirm'
+  | 'toolbar.printMaskHint'
   | 'toolbar.exportHtml'
   | 'toolbar.exportHtmlTitle'
   | 'toolbar.search'
@@ -27,6 +37,9 @@ export type FileViewerMessageKey =
   | 'toolbar.searchPrevious'
   | 'toolbar.searchNext'
   | 'toolbar.searchClear'
+  | 'toolbar.theme'
+  | 'toolbar.themeToLight'
+  | 'toolbar.themeToDark'
   | 'state.ready.title'
   | 'state.ready.message'
   | 'state.empty.title'
@@ -254,6 +267,12 @@ export type FileViewerMessageKey =
   | 'drawing.toolbar.fitWidth'
   | 'drawing.state.loading'
   | 'text.code.loadingHighlight'
+  | 'text.code.indexingLargeFile'
+  | 'text.code.virtualized'
+  | 'text.code.firstSegment'
+  | 'text.code.previousSegment'
+  | 'text.code.nextSegment'
+  | 'text.code.lastSegment'
   | 'ebook.toc'
   | 'ebook.reading'
   | 'ebook.itemCount'
@@ -455,9 +474,9 @@ export type FileViewerLifecyclePhase = 'load-start' | 'load-complete' | 'unload-
 
 export type FileViewerOperationType = 'download' | 'print' | 'export-html' | 'zoom-in' | 'zoom-out' | 'zoom-reset';
 
-export type FileViewerToolbarItem = 'search' | 'zoom' | 'download' | 'print' | 'exportHtml' | 'export-html';
+export type FileViewerToolbarItem = 'search' | 'zoom' | 'download' | 'print' | 'exportHtml' | 'export-html' | 'theme';
 
-export type FileViewerResolvedToolbarItem = 'search' | 'zoom' | 'download' | 'print' | 'exportHtml';
+export type FileViewerResolvedToolbarItem = 'search' | 'zoom' | 'download' | 'print' | 'exportHtml' | 'theme';
 
 export type FileViewerToolbarActionMap = Partial<Record<FileViewerOperationType, boolean>>;
 
@@ -503,6 +522,8 @@ export interface FileViewerToolbarOptions {
   exportHtml?: boolean;
   zoom?: boolean;
   search?: boolean;
+  /** Shows a manual light/dark mode toggle without changing the host page theme. */
+  theme?: boolean;
   /** Built-in toolbar group order. Missing entries keep their default relative order. */
   order?: FileViewerToolbarItem[];
   /** Controls which built-in toolbar actions are displayed without disabling controller APIs. */
@@ -589,10 +610,33 @@ export interface FileViewerPdfOptions {
   streaming?: boolean | 'same-origin';
   rangeChunkSize?: number;
   withCredentials?: boolean;
+  /**
+   * Base URL for the self-hosted PDF worker, cMaps, WASM, standard fonts, and
+   * CJK fallback fonts. Useful for SPA routes whose document URL is deeper
+   * than the deployment public path, for example `/workspace/c/`.
+   */
+  assetBaseUrl?: string | URL;
   workerUrl?: string;
   cMapUrl?: string;
   wasmUrl?: string;
   standardFontDataUrl?: string;
+  /**
+   * Enables the self-hosted CJK fallback used when a PDF references a font
+   * such as Microsoft YaHei without embedding the font data. Defaults to true.
+   */
+  cjkFontFallback?: boolean;
+  /**
+   * Repairs malformed Identity-H/V CJK fonts that omit ToUnicode when the PDF
+   * also embeds a usable same-family TrueType cmap. Defaults to true. The
+   * repair is applied only to the in-memory preview and never changes the
+   * original file used by download operations.
+   */
+  identityFontRepair?: boolean;
+  /**
+   * Directory containing `noto-sans-sc.css`, its `files/` font shards, and
+   * the bundled font license. The path is resolved against the document base.
+   */
+  cjkFontFallbackPath?: string;
 }
 
 export interface FileViewerDocxOptions {
@@ -613,6 +657,8 @@ export interface FileViewerDocxOptions {
   updatePageReferences?: boolean;
   hideWebHiddenContent?: boolean;
   ignoreLastRenderedPageBreak?: boolean;
+  /** Overrides automatic DOCX dark rendering derived from the viewer theme. */
+  darkMode?: boolean;
 }
 
 export interface FileViewerSpreadsheetOptions {
@@ -899,6 +945,15 @@ export interface FileViewerAiOptions {
   chunkOverlap?: number;
 }
 
+export interface FileViewerTextOptions {
+  /** Switches text/code/Markdown to bounded virtual rendering above this byte size. Defaults to 512 KiB. */
+  virtualizeAboveBytes?: number;
+  /** Maximum source bytes mounted for one very long logical line at a time. Defaults to 16 KiB. */
+  maxRenderedLineBytes?: number;
+  /** Extra logical lines mounted above and below the visible viewport. Defaults to 12. */
+  virtualOverscanLines?: number;
+}
+
 export type FileViewerUiDensity = 'comfortable' | 'compact';
 
 export interface FileViewerUiOptions {
@@ -981,6 +1036,7 @@ export interface FileViewerOptions {
   toolbar?: boolean | FileViewerToolbarOptions;
   search?: boolean | FileViewerSearchOptions;
   ai?: boolean | FileViewerAiOptions;
+  text?: FileViewerTextOptions;
   /**
    * Explicit content fitting strategy. When omitted, each renderer keeps its
    * historical first-screen behavior for backward compatibility.
@@ -1256,6 +1312,7 @@ export interface FileViewerComponentEventMap {
   'zoom-change': FileViewerZoomState;
   'view-state-change': FileViewerViewStateChange;
   'fit-change': FileViewerFitResult;
+  'theme-change': FileViewerResolvedThemeMode;
 }
 
 export type FileViewerEventType = keyof FileViewerComponentEventMap;
@@ -1282,12 +1339,14 @@ export interface FileViewerComponentEmits {
   (event: 'zoom-change', state: FileViewerComponentEventMap['zoom-change']): void;
   (event: 'view-state-change', change: FileViewerComponentEventMap['view-state-change']): void;
   (event: 'fit-change', result: FileViewerComponentEventMap['fit-change']): void;
+  (event: 'theme-change', theme: FileViewerComponentEventMap['theme-change']): void;
 }
 
 export interface FileViewerPublicApi {
   destroy(): void;
   downloadOriginalFile(): Promise<void>;
-  printRenderedHtml(): Promise<void>;
+  printRenderedHtml(options?: FileViewerPrintOptions): Promise<void>;
+  printWithMask(options?: FileViewerPrintOptions): Promise<void>;
   exportRenderedHtml(): Promise<void>;
   zoomIn(): Promise<FileViewerZoomState>;
   zoomOut(): Promise<FileViewerZoomState>;
@@ -1323,12 +1382,29 @@ export interface FileViewerExportHtmlOptions {
   watermarkInlineStyle?: string;
 }
 
+/** Normalized print-mask rectangle in percent of the rendered content box. */
+export interface FileViewerPrintMaskRegion {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface FileViewerPrintMaskOptions {
+  /** Solid black cover blocks, matching common OFD/business redaction UX. */
+  regions?: FileViewerPrintMaskRegion[];
+  /** Fill color for print masks. Defaults to opaque black. */
+  color?: string;
+}
+
 export interface FileViewerPrintOptions {
   autoPrint?: boolean;
   openWindow?: () => Window | null;
   printWindow?: Window | null;
   title?: string;
   watermarkInlineStyle?: string;
+  /** Optional print-time cover masks applied above content and below watermark. */
+  mask?: FileViewerPrintMaskOptions | null;
 }
 
 export interface FileViewerSource {
@@ -1479,6 +1555,8 @@ export interface FileViewerInstance {
   download(options?: FileViewerDownloadOptions): Promise<void>;
   exportHtml(options?: FileViewerExportHtmlOptions): Promise<string>;
   print(options?: FileViewerPrintOptions): Promise<void>;
+  /** Open the async print-mask designer, then print with the chosen covers. */
+  printWithMask(options?: FileViewerPrintOptions): Promise<void>;
   zoomIn(): Promise<FileViewerZoomState>;
   zoomOut(): Promise<FileViewerZoomState>;
   resetZoom(): Promise<FileViewerZoomState>;

@@ -2,6 +2,7 @@ import type {
   FileViewerArchiveOptions,
   FileViewerCadOptions,
   FileViewerOptions,
+  FileViewerResolvedThemeMode,
   FileViewerThemeMode,
   FileViewerToolbarOptions,
   FileViewerUiDensity,
@@ -104,6 +105,28 @@ export const normalizeFileViewerTheme = (
   theme: FileViewerThemeMode | undefined
 ): FileViewerThemeMode => {
   return theme === 'light' || theme === 'dark' || theme === 'system' ? theme : 'system';
+};
+
+const readSystemDarkMode = () => {
+  return typeof globalThis.matchMedia === 'function' &&
+    globalThis.matchMedia('(prefers-color-scheme: dark)').matches;
+};
+
+export const resolveFileViewerColorScheme = (
+  theme: FileViewerThemeMode | undefined,
+  systemDark = readSystemDarkMode()
+): FileViewerResolvedThemeMode => {
+  const normalizedTheme = normalizeFileViewerTheme(theme);
+  return normalizedTheme === 'system'
+    ? (systemDark ? 'dark' : 'light')
+    : normalizedTheme;
+};
+
+export const toggleFileViewerColorScheme = (
+  theme: FileViewerThemeMode | undefined,
+  systemDark = readSystemDarkMode()
+): FileViewerResolvedThemeMode => {
+  return resolveFileViewerColorScheme(theme, systemDark) === 'dark' ? 'light' : 'dark';
 };
 
 export const normalizeFileViewerUiDensity = (

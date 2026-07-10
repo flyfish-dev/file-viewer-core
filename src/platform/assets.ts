@@ -21,6 +21,7 @@ export const DEFAULT_FILE_VIEWER_PDF_WORKER_PATH = 'vendor/pdf/pdf.worker.mjs';
 export const DEFAULT_FILE_VIEWER_PDF_CMAP_PATH = 'vendor/pdf/cmaps/';
 export const DEFAULT_FILE_VIEWER_PDF_WASM_PATH = 'vendor/pdf/wasm/';
 export const DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH = 'vendor/pdf/standard_fonts/';
+export const DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH = 'vendor/pdf/fonts/';
 export const DEFAULT_FILE_VIEWER_DRAWIO_VIEWER_SCRIPT_PATH = 'vendor/drawio/viewer-static.min.js';
 export const DEFAULT_FILE_VIEWER_DRAWIO_ASSET_PATH = 'vendor/drawio/';
 export const DEFAULT_FILE_VIEWER_CAD_WASM_PATH = 'wasm/cad/';
@@ -61,6 +62,7 @@ export interface ResolvedFileViewerPdfAssetUrls {
   cMapUrl: string;
   wasmUrl: string;
   standardFontDataUrl: string;
+  cjkFontFallbackPath: string;
 }
 
 export type FileViewerRendererAssetKind =
@@ -87,6 +89,7 @@ export type FileViewerRendererAssetOptionPath =
   | 'pdf.cMapUrl'
   | 'pdf.wasmUrl'
   | 'pdf.standardFontDataUrl'
+  | 'pdf.cjkFontFallbackPath'
   | 'presentation.workerUrl'
   | 'spreadsheet.workerUrl'
   | 'typst.compilerWasmUrl'
@@ -177,7 +180,7 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         required: true,
         defaultPath: DEFAULT_FILE_VIEWER_PDF_WASM_PATH,
         optionPath: 'pdf.wasmUrl',
-        description: 'PDF.js WebAssembly helper directory for fully self-hosted PDF rendering.',
+        description: 'PDF.js WebAssembly helpers for image decoding and fully self-hosted PDF rendering.',
       },
       {
         id: 'pdf-standard-fonts',
@@ -188,6 +191,16 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         defaultPath: DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH,
         optionPath: 'pdf.standardFontDataUrl',
         description: 'PDF.js standard font data used when PDF files reference base fonts.',
+      },
+      {
+        id: 'pdf-cjk-font-fallback',
+        rendererId: 'pdf',
+        kind: 'directory',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH,
+        optionPath: 'pdf.cjkFontFallbackPath',
+        description: 'Self-hosted Noto Sans SC variable font shards used for missing unembedded CJK fonts.',
       },
     ],
   },
@@ -381,32 +394,6 @@ export const resolveFileViewerAssetUrl = (
   return options.trimTrailingSlash ? resolved.replace(/\/+$/, '') : resolved;
 };
 
-const getFileViewerDocumentOriginBaseUrl = (documentBaseUrl?: string) => {
-  try {
-    const parsed = new URL(documentBaseUrl || DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL, DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL);
-    if (parsed.origin && parsed.origin !== 'null') {
-      return `${parsed.origin}/`;
-    }
-  } catch {
-    // Keep the resolver deterministic in non-browser tests and unusual URL schemes.
-  }
-  return DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL;
-};
-
-const resolveFileViewerRootDefaultAssetUrl = (
-  value: string | URL | undefined,
-  fallback: string,
-  options: ResolveFileViewerAssetUrlOptions = {}
-) => {
-  if (value !== undefined && value !== null && String(value).trim()) {
-    return resolveFileViewerAssetUrl(value, fallback, options);
-  }
-  return resolveFileViewerAssetUrl(undefined, fallback, {
-    ...options,
-    baseUrl: getFileViewerDocumentOriginBaseUrl(options.documentBaseUrl),
-  });
-};
-
 export const resolveFileViewerArchiveWorkerUrl = (
   options?: Pick<FileViewerArchiveOptions, 'workerUrl'> | null,
   baseUrl?: string
@@ -443,23 +430,35 @@ export const resolveFileViewerCadAssetUrls = (
 };
 
 export const resolveFileViewerPdfAssetUrls = (
-  options?: Pick<FileViewerPdfOptions, 'workerUrl' | 'cMapUrl' | 'wasmUrl' | 'standardFontDataUrl'> | null,
+  options?: Pick<FileViewerPdfOptions, 'assetBaseUrl' | 'workerUrl' | 'cMapUrl' | 'wasmUrl' | 'standardFontDataUrl' | 'cjkFontFallbackPath'> | null,
   documentBaseUrl?: string
 ): ResolvedFileViewerPdfAssetUrls => {
+  const rawAssetBaseUrl = options?.assetBaseUrl ? String(options.assetBaseUrl) : '';
+  const assetBaseUrl = rawAssetBaseUrl
+    ? new URL(
+        rawAssetBaseUrl.endsWith('/') ? rawAssetBaseUrl : `${rawAssetBaseUrl}/`,
+        documentBaseUrl || DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL
+      ).href
+    : documentBaseUrl;
   return {
-    workerUrl: resolveFileViewerRootDefaultAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_PDF_WORKER_PATH, {
-      documentBaseUrl,
+    workerUrl: resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_PDF_WORKER_PATH, {
+      documentBaseUrl: assetBaseUrl,
     }),
-    cMapUrl: resolveFileViewerRootDefaultAssetUrl(options?.cMapUrl, DEFAULT_FILE_VIEWER_PDF_CMAP_PATH, {
-      documentBaseUrl,
+    cMapUrl: resolveFileViewerAssetUrl(options?.cMapUrl, DEFAULT_FILE_VIEWER_PDF_CMAP_PATH, {
+      documentBaseUrl: assetBaseUrl,
     }),
-    wasmUrl: resolveFileViewerRootDefaultAssetUrl(options?.wasmUrl, DEFAULT_FILE_VIEWER_PDF_WASM_PATH, {
-      documentBaseUrl,
+    wasmUrl: resolveFileViewerAssetUrl(options?.wasmUrl, DEFAULT_FILE_VIEWER_PDF_WASM_PATH, {
+      documentBaseUrl: assetBaseUrl,
     }),
-    standardFontDataUrl: resolveFileViewerRootDefaultAssetUrl(
+    standardFontDataUrl: resolveFileViewerAssetUrl(
       options?.standardFontDataUrl,
       DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH,
-      { documentBaseUrl }
+      { documentBaseUrl: assetBaseUrl }
+    ),
+    cjkFontFallbackPath: resolveFileViewerAssetUrl(
+      options?.cjkFontFallbackPath,
+      DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH,
+      { documentBaseUrl: assetBaseUrl }
     ),
   };
 };
@@ -600,6 +599,8 @@ const getRendererAssetOptionValue = (
       return options?.pdf?.wasmUrl;
     case 'pdf.standardFontDataUrl':
       return options?.pdf?.standardFontDataUrl;
+    case 'pdf.cjkFontFallbackPath':
+      return options?.pdf?.cjkFontFallbackPath;
     case 'presentation.workerUrl':
       return options?.presentation?.workerUrl;
     case 'spreadsheet.workerUrl':

@@ -2,7 +2,13 @@ import type {
   FileRenderExportAdapter,
   FileRenderExportMode,
   FileRenderExportOptions,
+  FileViewerPrintMaskOptions,
 } from '../contracts/types'
+import {
+  buildFileViewerPrintMaskOverlayHtml,
+  FILE_VIEWER_PRINT_MASK_STYLE,
+  normalizeFileViewerPrintMaskOptions,
+} from '../features/printMask'
 
 const escapeHtmlAttribute = (value: string) => value
   .replace(/&/g, '&amp;')
@@ -16,6 +22,7 @@ const EXPORT_DOCUMENT_STYLE = `
   body { padding: 24px; }
   .viewer-export-shell { position: relative; min-height: calc(100vh - 48px); overflow: visible; background: #f2f4f7; }
   .viewer-export-content { position: relative; z-index: 1; contain: none; width: 100%; min-height: 100%; overflow: visible; }
+  .viewer-export-watermark { position: absolute; inset: 0; pointer-events: none; z-index: 20; background-repeat: repeat; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .viewer-export-content .file-render,
   .viewer-export-content .file-viewer,
   .viewer-export-content .viewer-stage,
@@ -286,6 +293,7 @@ export interface BuildExportHtmlDocumentOptions {
   printStyle?: string;
   title: string;
   watermarkInlineStyle?: string;
+  mask?: FileViewerPrintMaskOptions | null;
 }
 
 export const collectDocumentStyles = () => {
@@ -308,13 +316,16 @@ export const buildExportHtmlDocument = ({
   includeDocumentStyles = true,
   printStyle = '',
   title,
-  watermarkInlineStyle = ''
+  watermarkInlineStyle = '',
+  mask = null,
 }: BuildExportHtmlDocumentOptions) => {
   const watermark = watermarkInlineStyle
     ? `<div class="viewer-export-watermark" style="${watermarkInlineStyle}"></div>`
     : ''
+  const maskHtml = buildFileViewerPrintMaskOverlayHtml(mask)
   const styles = includeDocumentStyles ? collectDocumentStyles() : ''
   const printOverrideStyle = printStyle ? `<style data-viewer-print-style>${printStyle}</style>` : ''
+  const maskStyle = maskHtml ? `<style data-viewer-print-mask-style>${FILE_VIEWER_PRINT_MASK_STYLE}</style>` : ''
   const safeTitle = escapeHtmlAttribute(title)
 
   return `<!doctype html>
@@ -325,10 +336,12 @@ export const buildExportHtmlDocument = ({
   <title>${safeTitle}</title>
   ${styles}
   <style>${EXPORT_DOCUMENT_STYLE}</style>
+  ${maskStyle}
 </head>
 <body>
   <main class="viewer-export-shell">
     <div class="viewer-export-content">${contentHtml}</div>
+    ${maskHtml}
     ${watermark}
   </main>
   ${printOverrideStyle}
@@ -342,6 +355,7 @@ export interface BuildFileViewerRenderedHtmlDocumentOptions {
   title: string;
   adapter?: FileRenderExportAdapter | null;
   watermarkInlineStyle?: string;
+  mask?: FileViewerPrintMaskOptions | null;
 }
 
 export const triggerFileViewerBlobDownload = (blob: Blob, name: string) => {
@@ -410,7 +424,10 @@ export const waitForFileViewerNextPaint = (
   })
 }
 
-export const waitForFileViewerImages = async (root: ParentNode) => {
+export const waitForFileViewerImages = async (root: ParentNode | null | undefined) => {
+  if (!root || typeof root.querySelectorAll !== 'function') {
+    return
+  }
   const images = Array.from(root.querySelectorAll('img'))
   await Promise.all(images.map(async image => {
     if (image.complete) {
@@ -429,6 +446,80 @@ export const waitForFileViewerImages = async (root: ParentNode) => {
       image.addEventListener('error', () => resolve(), { once: true })
     })
   }))
+}
+
+const bytesToDataUrl = (bytes: ArrayBuffer, mimeType: string) => {
+  const type = mimeType || 'application/octet-stream'
+  const nodeBuffer = (globalThis as { Buffer?: { from(data: ArrayBuffer): { toString(encoding: string): string } } }).Buffer
+  if (nodeBuffer) {
+    return `data:${type};base64,${nodeBuffer.from(bytes).toString('base64')}`
+  }
+  let binary = ''
+  const view = new Uint8Array(bytes)
+  for (let index = 0; index < view.length; index += 1) {
+    binary += String.fromCharCode(view[index]!)
+  }
+  return `data:${type};base64,${btoa(binary)}`
+}
+
+const blobToDataUrl = async (blob: Blob) => {
+  if (typeof FileReader === 'function') {
+    try {
+      return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result || ''))
+        reader.onerror = () => reject(reader.error || new Error('Failed to read blob'))
+        reader.readAsDataURL(blob)
+      })
+    } catch {
+      // Fall through to ArrayBuffer encoding for Node / incomplete FileReader shims.
+    }
+  }
+  return bytesToDataUrl(await blob.arrayBuffer(), blob.type || 'application/octet-stream')
+}
+
+const collectBlobUrls = (html: string) => {
+  const matches = html.match(/blob:[^\s"'<>)\\]+/g) || []
+  return Array.from(new Set(matches))
+}
+
+/**
+ * Rewrite ephemeral `blob:` URLs into portable `data:` URLs so exported / printed
+ * HTML keeps images after leaving the live viewer document (GitHub #90).
+ */
+export const inlineFileViewerBlobUrlsInHtml = async (html: string) => {
+  if (!html.includes('blob:') || typeof fetch !== 'function') {
+    return html
+  }
+
+  const urls = collectBlobUrls(html)
+  if (!urls.length) {
+    return html
+  }
+
+  const replacements = await Promise.all(urls.map(async url => {
+    try {
+      const response = await fetch(url)
+      if (!response.ok) {
+        return null
+      }
+      const blob = await response.blob()
+      const dataUrl = await blobToDataUrl(blob)
+      return dataUrl ? ([url, dataUrl] as const) : null
+    } catch {
+      return null
+    }
+  }))
+
+  let next = html
+  for (const pair of replacements) {
+    if (!pair) {
+      continue
+    }
+    const [from, to] = pair
+    next = next.split(from).join(to)
+  }
+  return next
 }
 
 export const waitForFileViewerPrintWindowReady = async (printWindow: Window) => {
@@ -495,20 +586,24 @@ export const buildFileViewerRenderedHtmlDocument = async ({
   mode = 'export',
   title,
   adapter = null,
-  watermarkInlineStyle = ''
+  watermarkInlineStyle = '',
+  mask = null,
 }: BuildFileViewerRenderedHtmlDocumentOptions) => {
   const exportOptions: FileRenderExportOptions = { mode, title }
   const toHtml = adapter?.toHtml
+  const normalizedMask = normalizeFileViewerPrintMaskOptions(mask)
 
   if (toHtml) {
-    const contentHtml = await toHtml(exportOptions)
+    await prepareFileViewerRenderedContentForSnapshot(source, adapter)
+    const contentHtml = await inlineFileViewerBlobUrlsInHtml(await toHtml(exportOptions))
     const printStyle = await resolveFileViewerPrintStyle(adapter, exportOptions)
     return buildExportHtmlDocument({
       contentHtml,
       includeDocumentStyles: adapter.includeDocumentStyles !== false,
       printStyle,
       title,
-      watermarkInlineStyle
+      watermarkInlineStyle,
+      mask: normalizedMask,
     })
   }
 
@@ -519,9 +614,10 @@ export const buildFileViewerRenderedHtmlDocument = async ({
   const printStyle = await resolveFileViewerPrintStyle(adapter, exportOptions)
 
   return buildExportHtmlDocument({
-    contentHtml: clone.innerHTML,
+    contentHtml: await inlineFileViewerBlobUrlsInHtml(clone.innerHTML),
     printStyle,
     title,
-    watermarkInlineStyle
+    watermarkInlineStyle,
+    mask: normalizedMask,
   })
 }

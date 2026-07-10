@@ -117,13 +117,15 @@ export interface CreateFileViewerOperationActionHandlersInput extends FileViewer
 export interface FileViewerOperationActionHandlers {
   downloadOriginalFile(): Promise<boolean | undefined>;
   exportRenderedHtml(): Promise<string | undefined>;
-  printRenderedHtml(): Promise<boolean | undefined>;
+  printRenderedHtml(options?: FileViewerPrintOptions): Promise<boolean | undefined>;
+  printWithMask(options?: FileViewerPrintOptions): Promise<boolean | undefined>;
 }
 
 export interface FileViewerPublicOperationActionHandlers {
   downloadOriginalFile(): Promise<void>;
   exportRenderedHtml(): Promise<void>;
-  printRenderedHtml(): Promise<void>;
+  printRenderedHtml(options?: FileViewerPrintOptions): Promise<void>;
+  printWithMask(options?: FileViewerPrintOptions): Promise<void>;
 }
 
 interface BuildRenderedHtmlDocumentFromOperationInput {
@@ -132,6 +134,7 @@ interface BuildRenderedHtmlDocumentFromOperationInput {
   filename?: string;
   adapter?: FileRenderExportAdapter | null;
   watermarkInlineStyle?: string;
+  mask?: FileViewerPrintOptions['mask'];
   i18n?: FileViewerI18nInput;
 }
 
@@ -230,6 +233,7 @@ const buildRenderedHtmlDocumentFromOperation = async (
     filename,
     adapter = null,
     watermarkInlineStyle,
+    mask = null,
     i18n,
   }: BuildRenderedHtmlDocumentFromOperationInput
 ) => {
@@ -246,6 +250,7 @@ const buildRenderedHtmlDocumentFromOperation = async (
     }),
     adapter,
     watermarkInlineStyle,
+    mask: mode === 'print' ? mask : null,
   });
 };
 
@@ -468,10 +473,47 @@ export const createFileViewerOperationActionHandlers = ({
         return undefined;
       }
     },
-    async printRenderedHtml() {
+    async printRenderedHtml(options: FileViewerPrintOptions = {}) {
       try {
         return await executeFileViewerPrintOperation({
           ...getRenderedOperationInput(),
+          ...options,
+          watermarkInlineStyle: options.watermarkInlineStyle ?? getWatermarkInlineStyle?.() ?? undefined,
+          printAvailable: getPrintAvailable?.() ?? true,
+        });
+      } catch (error) {
+        handleFileViewerOperationActionError('print', error, {
+          errorPrefixes,
+          formatErrorMessage,
+          getI18n,
+          i18n,
+          onError,
+          onErrorMessage,
+        });
+        return undefined;
+      }
+    },
+    async printWithMask(options: FileViewerPrintOptions = {}) {
+      try {
+        const source = getRenderedSource();
+        if (!source) {
+          throw new Error(translateFileViewerMessage(resolveI18n(), 'error.noExportContent'));
+        }
+        const { openFileViewerPrintMaskDesignerAsync } = await import('../features/printMaskLoader');
+        const result = await openFileViewerPrintMaskDesignerAsync({
+          root: source,
+          i18n: resolveI18n(),
+          color: options.mask?.color,
+          initialRegions: options.mask?.regions,
+        });
+        if (!result?.mask) {
+          return undefined;
+        }
+        return await executeFileViewerPrintOperation({
+          ...getRenderedOperationInput(),
+          ...options,
+          watermarkInlineStyle: options.watermarkInlineStyle ?? getWatermarkInlineStyle?.() ?? undefined,
+          mask: result.mask,
           printAvailable: getPrintAvailable?.() ?? true,
         });
       } catch (error) {
@@ -501,8 +543,11 @@ export const createFileViewerPublicOperationActionHandlers = (
     async exportRenderedHtml() {
       await actions.exportRenderedHtml();
     },
-    async printRenderedHtml() {
-      await actions.printRenderedHtml();
+    async printRenderedHtml(options?: FileViewerPrintOptions) {
+      await actions.printRenderedHtml(options);
+    },
+    async printWithMask(options?: FileViewerPrintOptions) {
+      await actions.printWithMask(options);
     },
   };
 };

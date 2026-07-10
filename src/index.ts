@@ -182,6 +182,7 @@ export {
   buildExportHtmlDocument,
   collectDocumentStyles,
   prepareFileViewerRenderedContentForSnapshot,
+  inlineFileViewerBlobUrlsInHtml,
   replaceFileViewerCanvasWithImages,
   resolveFileViewerPrintStyle,
   triggerFileViewerBlobDownload,
@@ -694,10 +695,12 @@ export {
   normalizeFileViewerUiDensity,
   normalizeFileViewerTheme,
   parseFileViewerOptions,
+  resolveFileViewerColorScheme,
   resolveFileViewerUiDensity,
   sanitizeFileViewerOptions,
   serializeFileViewerOptions,
   setFileViewerOptionsSearchParam,
+  toggleFileViewerColorScheme,
 } from './config/options';
 export {
   resolveFileViewerPresentationState,
@@ -804,6 +807,19 @@ export type {
   FileViewerWatermarkPresentationState,
   FileViewerWatermarkStyle,
 } from './features/watermark';
+export {
+  buildFileViewerPrintMaskOverlayHtml,
+  normalizeFileViewerPrintMaskOptions,
+  normalizeFileViewerPrintMaskRegion,
+  FILE_VIEWER_PRINT_MASK_STYLE,
+} from './features/printMask';
+export {
+  openFileViewerPrintMaskDesignerAsync,
+} from './features/printMaskLoader';
+export type {
+  FileViewerPrintMaskDesignerResult,
+  OpenFileViewerPrintMaskDesignerOptions,
+} from './features/printMaskDesigner';
 export {
   cancelFileViewerPreviewRequest,
   DEFAULT_FILE_VIEWER_STREAMING_PDF_FILENAME,
@@ -1094,6 +1110,8 @@ export type {
   FileViewerStateDescriptor,
   FileViewerStateTheme,
   FileViewerStyleIsolation,
+  FileViewerTextOptions,
+  FileViewerResolvedThemeMode,
   FileViewerThemeMode,
   FileViewerToolbarActionMap,
   FileViewerToolbarItem,

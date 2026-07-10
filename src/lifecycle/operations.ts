@@ -73,6 +73,7 @@ export const DEFAULT_FILE_VIEWER_TOOLBAR_ORDER = [
   'download',
   'print',
   'exportHtml',
+  'theme',
 ] as const satisfies readonly FileViewerResolvedToolbarItem[];
 
 export interface FileViewerLifecycleComponentEmit {
@@ -718,6 +719,9 @@ const normalizeFileViewerToolbarItem = (
   if (item === 'exportHtml' || item === 'export-html') {
     return 'exportHtml';
   }
+  if (item === 'theme') {
+    return 'theme';
+  }
   return undefined;
 };
 
@@ -1068,6 +1072,7 @@ export const normalizeFileViewerToolbar = (
       exportHtml: false,
       zoom: false,
       search: false,
+      theme: false,
       order: resolveFileViewerToolbarOrder(undefined),
     };
   }
@@ -1078,6 +1083,7 @@ export const normalizeFileViewerToolbar = (
       exportHtml: toolbar.exportHtml !== false && isFileViewerToolbarOperationVisible(toolbar, 'export-html'),
       zoom: toolbar.zoom !== false && hasAnyToolbarZoomOperation(toolbar),
       search: toolbar.search !== false,
+      theme: toolbar.theme !== false,
       order: resolveFileViewerToolbarOrder(toolbar),
       items: toolbar.items,
       permissions: toolbar.permissions,
@@ -1094,6 +1100,7 @@ export const normalizeFileViewerToolbar = (
     exportHtml: true,
     zoom: true,
     search: true,
+    theme: true,
     order: resolveFileViewerToolbarOrder(undefined),
   };
 };
@@ -1143,11 +1150,12 @@ export const resolveVisibleFileViewerToolbar = (
     print: toolbar.print && availability.print,
     exportHtml: toolbar.exportHtml && availability.exportHtml,
     zoom: toolbar.zoom && availability.zoom,
+    theme: toolbar.theme !== false,
   };
 };
 
 export const hasVisibleFileViewerToolbarActions = (toolbar: FileViewerToolbarOptions) => {
-  return !!(toolbar.download || toolbar.print || toolbar.exportHtml || toolbar.zoom);
+  return !!(toolbar.download || toolbar.print || toolbar.exportHtml || toolbar.zoom || toolbar.theme);
 };
 
 export const isFileViewerZoomButtonDisabled = ({

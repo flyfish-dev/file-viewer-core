@@ -185,10 +185,12 @@ export {
   normalizeFileViewerUiDensity,
   normalizeFileViewerTheme,
   parseFileViewerOptions,
+  resolveFileViewerColorScheme,
   resolveFileViewerUiDensity,
   sanitizeFileViewerOptions,
   serializeFileViewerOptions,
   setFileViewerOptionsSearchParam,
+  toggleFileViewerColorScheme,
 } from './config/options';
 export type {
   FileViewerSerializableCadOptions,
@@ -452,6 +454,8 @@ export type {
   FileViewerSpreadsheetOptions,
   FileViewerStateDescriptor,
   FileViewerStateTheme,
+  FileViewerTextOptions,
+  FileViewerResolvedThemeMode,
   FileViewerThemeMode,
   FileViewerToolbarActionMap,
   FileViewerToolbarItem,

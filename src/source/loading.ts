@@ -737,8 +737,89 @@ export const resolveFileViewerPreviewRequestReason = (
   return hasFileViewerPreviewSource(input) ? 'replace' : 'reset';
 };
 
+const FILE_VIEWER_HIERARCHICAL_URL_PATTERN = /^[a-z][a-z0-9+.-]*:\/\//i;
+const FILE_VIEWER_SCHEME_URL_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
+
+const findFileViewerUrlSuffixIndex = (value: string) => {
+  const queryIndex = value.indexOf('?');
+  const hashIndex = value.indexOf('#');
+  if (queryIndex === -1) {
+    return hashIndex;
+  }
+  if (hashIndex === -1) {
+    return queryIndex;
+  }
+  return Math.min(queryIndex, hashIndex);
+};
+
+const encodeFileViewerUrlPathSegment = (segment: string) => {
+  if (!segment) {
+    return segment;
+  }
+
+  let decoded = segment;
+  try {
+    decoded = decodeURIComponent(segment);
+  } catch {
+    // Invalid percent escapes are treated as literal filename characters.
+  }
+
+  return encodeURIComponent(decoded)
+    .replace(/%3A/gi, ':')
+    .replace(/%40/gi, '@')
+    .replace(/%24/g, '$')
+    .replace(/%26/g, '&')
+    .replace(/%2B/gi, '+')
+    .replace(/%2C/gi, ',')
+    .replace(/%3B/gi, ';')
+    .replace(/%3D/gi, '=');
+};
+
+const normalizeFileViewerUrlPathname = (pathname: string) => {
+  return pathname
+    .split('/')
+    .map(encodeFileViewerUrlPathSegment)
+    .join('/');
+};
+
+const splitFileViewerUrlPathPrefix = (pathPart: string) => {
+  if (pathPart.startsWith('//')) {
+    const pathStart = pathPart.indexOf('/', 2);
+    return pathStart === -1
+      ? { prefix: pathPart, pathname: '' }
+      : { prefix: pathPart.slice(0, pathStart), pathname: pathPart.slice(pathStart) };
+  }
+
+  const hierarchical = pathPart.match(FILE_VIEWER_HIERARCHICAL_URL_PATTERN);
+  if (hierarchical) {
+    const pathStart = pathPart.indexOf('/', hierarchical[0].length);
+    return pathStart === -1
+      ? { prefix: pathPart, pathname: '' }
+      : { prefix: pathPart.slice(0, pathStart), pathname: pathPart.slice(pathStart) };
+  }
+
+  if (FILE_VIEWER_SCHEME_URL_PATTERN.test(pathPart)) {
+    return { prefix: pathPart, pathname: '' };
+  }
+
+  return { prefix: '', pathname: pathPart };
+};
+
 export const normalizeFileViewerSourceUrl = (sourceUrl?: string | null) => {
-  return sourceUrl || null;
+  const trimmed = sourceUrl?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const suffixIndex = findFileViewerUrlSuffixIndex(trimmed);
+  const pathPart = suffixIndex === -1 ? trimmed : trimmed.slice(0, suffixIndex);
+  const suffix = suffixIndex === -1 ? '' : trimmed.slice(suffixIndex);
+  const { prefix, pathname } = splitFileViewerUrlPathPrefix(pathPart);
+  if (!pathname) {
+    return `${prefix}${suffix}`;
+  }
+
+  return `${prefix}${normalizeFileViewerUrlPathname(pathname)}${suffix}`;
 };
 
 export const createFileViewerEmptyPreviewState = (): FileViewerEmptyPreviewState => {
@@ -1325,6 +1406,7 @@ export const runFileViewerRemoteFilePreview = async <Session = unknown>({
     streaming,
     url,
   });
+  const sourceUrl = remoteSource.url;
 
   commitFileViewerLoadStartState({
     version,
@@ -1333,7 +1415,7 @@ export const runFileViewerRemoteFilePreview = async <Session = unknown>({
     buildState: () => buildLoadStartState({
       version,
       source: 'url',
-      sourceUrl: url,
+      sourceUrl,
     }),
     onMarkLoadStarted,
     onLifecycle,
@@ -1342,7 +1424,7 @@ export const runFileViewerRemoteFilePreview = async <Session = unknown>({
 
   if (remoteSource.streamPdf) {
     const stream = await runFileViewerStreamingPdfPreview({
-      url,
+      url: sourceUrl,
       version,
       filename: remoteSource.filename,
       previewTarget,
@@ -1352,7 +1434,7 @@ export const runFileViewerRemoteFilePreview = async <Session = unknown>({
       buildRenderCompleteState: input => buildRenderCompleteState({
         version: input.version,
         source: 'url',
-        sourceUrl: url,
+        sourceUrl,
       }),
       i18n,
       onStartLoading,
@@ -1400,7 +1482,7 @@ export const runFileViewerRemoteFilePreview = async <Session = unknown>({
 
   try {
     const data = await downloadFile({
-      url,
+      url: sourceUrl,
       signal: controller?.signal,
     });
     const download = commitFileViewerRemoteDownloadState({
@@ -1439,7 +1521,7 @@ export const runFileViewerRemoteFilePreview = async <Session = unknown>({
       file: download.source.file,
       version,
       source: 'url',
-      sourceUrl: url,
+      sourceUrl,
       previewTarget,
       isCurrent,
       mountRenderedContent,
@@ -1448,7 +1530,7 @@ export const runFileViewerRemoteFilePreview = async <Session = unknown>({
         version: input.version,
         source: 'url',
         file: input.file,
-        sourceUrl: url,
+        sourceUrl,
       }),
       onSession,
       onActiveDocumentContext,
@@ -1887,11 +1969,12 @@ export const resolveFileViewerRemoteSourcePlan = ({
   streaming?: FileViewerPdfOptions['streaming'];
   url: string;
 }): FileViewerRemoteSourcePlan => {
+  const sourceUrl = normalizeFileViewerSourceUrl(url) || url;
   const nextFilename = normalizeFilename(filename || url, fallbackFilename);
   const extension = getExtension(nextFilename);
 
   return {
-    url,
+    url: sourceUrl,
     filename: nextFilename,
     extension,
     streamPdf: pageHref
@@ -1899,7 +1982,7 @@ export const resolveFileViewerRemoteSourcePlan = ({
         extension,
         pageHref,
         streaming,
-        url,
+        url: sourceUrl,
       })
       : false,
   };

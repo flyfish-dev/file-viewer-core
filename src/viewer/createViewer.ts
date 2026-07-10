@@ -27,6 +27,7 @@ import {
   resolveFileViewerDisplayFilename,
   resolveFileViewerOperationFilename,
 } from './operations';
+import { openFileViewerPrintMaskDesignerAsync } from '../features/printMaskLoader';
 import {
   applyFileViewerZoomAvailability,
   createUnsupportedAvailability,
@@ -577,7 +578,7 @@ export const createViewer = (
     }
   };
 
-  return {
+  const instance: FileViewerInstance = {
     container,
     async load(source: FileViewerSource) {
       const version = requestScope.requestController.createVersion();
@@ -726,8 +727,24 @@ export const createViewer = (
           fallback: DEFAULT_FILE_VIEWER_PREVIEW_TITLE,
         }),
         watermarkInlineStyle: getWatermarkInlineStyle(printOptions.watermarkInlineStyle),
+        mask: printOptions.mask,
         printAvailable: getCapabilitiesForExtension().print,
         beforeOperation: runBeforeViewerOperation,
+      });
+    },
+    async printWithMask(printOptions: FileViewerPrintOptions = {}) {
+      const result = await openFileViewerPrintMaskDesignerAsync({
+        root: container,
+        i18n: options,
+        color: printOptions.mask?.color,
+        initialRegions: printOptions.mask?.regions,
+      });
+      if (!result?.mask) {
+        return;
+      }
+      await instance.print({
+        ...printOptions,
+        mask: result.mask,
       });
     },
     async zoomIn() {
@@ -796,4 +813,6 @@ export const createViewer = (
       return documentActions.getDocumentTextChunks(textOptions);
     },
   };
+
+  return instance;
 };

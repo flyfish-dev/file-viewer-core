@@ -466,7 +466,12 @@ export const createFileViewerDomSearchController = ({
     disconnectObserver();
     const currentRoot = root();
     const MutationObserverCtor = getMutationObserverConstructor(currentRoot);
-    if (!shouldObserve || !currentRoot || !MutationObserverCtor) {
+    if (
+      !shouldObserve ||
+      !currentRoot ||
+      !MutationObserverCtor ||
+      findFileViewerSearchProvider(currentRoot)
+    ) {
       return;
     }
     observer = new MutationObserverCtor(rerunAfterDomChange);

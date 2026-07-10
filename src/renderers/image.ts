@@ -40,8 +40,8 @@ const imageStyle = `
 .image-lightbox[hidden]{display:none}
 .image-lightbox img{display:block;max-width:100%;max-height:100%;object-fit:contain;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.4);cursor:zoom-out}
 .image-lightbox button{position:absolute;top:20px;right:20px;width:40px;height:40px;border:0;border-radius:999px;background:rgba(255,255,255,.92);color:#172033;font-size:24px;line-height:40px;cursor:pointer;box-shadow:0 12px 28px rgba(0,0,0,.18)}
-.file-viewer[data-viewer-theme='dark'] .image-viewer{background:#101820}
-@media (prefers-color-scheme:dark){.file-viewer[data-viewer-theme='system'] .image-viewer{background:#101820}}
+[data-viewer-theme='dark'] .image-viewer{background:#101820}
+@media (prefers-color-scheme:dark){[data-viewer-theme='system'] .image-viewer{background:#101820}}
 @media (max-width:767px){.image-stage{padding:12px}.image-lightbox{padding:16px}.image-lightbox button{top:12px;right:12px}}
 `;
 
