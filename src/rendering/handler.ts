@@ -18,6 +18,7 @@ import { findFileViewerViewStateProvider } from '../features/document/dom';
 import { registerFileViewerGenericViewStateProvider } from '../features/document/viewState';
 import type {
   FileRenderExportAdapter,
+  FileRenderThumbnailAdapter,
   FileRenderContext,
   FileRenderHandler,
   FileViewerLifecycleContext,
@@ -81,6 +82,7 @@ export interface FileViewerRenderSurfaceState<
 > {
   session: Session | null;
   exportAdapter: FileRenderExportAdapter | null;
+  thumbnailAdapter: FileRenderThumbnailAdapter | null;
 }
 
 export type MutableFileViewerRenderSurfaceState<
@@ -97,6 +99,7 @@ export interface CreateFileViewerRenderSurfaceStateTargetInput<
 > {
   session: FileViewerMutableAccessor<Session | null>;
   exportAdapter: FileViewerMutableAccessor<FileRenderExportAdapter | null>;
+  thumbnailAdapter?: FileViewerMutableAccessor<FileRenderThumbnailAdapter | null>;
 }
 
 export interface CreateFileViewerRenderTargetOptions {
@@ -450,6 +453,7 @@ export const createFileViewerRenderSurfaceState = <
 >(): FileViewerRenderSurfaceState<Session> => ({
   session: null,
   exportAdapter: null,
+  thumbnailAdapter: null,
 });
 
 export const createFileViewerRenderReadinessTarget = ({
@@ -477,7 +481,9 @@ export const createFileViewerRenderSurfaceStateTarget = <
 >({
   session,
   exportAdapter,
+  thumbnailAdapter,
 }: CreateFileViewerRenderSurfaceStateTargetInput<Session>): MutableFileViewerRenderSurfaceState<Session> => {
+  let localThumbnailAdapter: FileRenderThumbnailAdapter | null = null;
   return {
     get session() {
       return session.get();
@@ -490,6 +496,13 @@ export const createFileViewerRenderSurfaceStateTarget = <
     },
     set exportAdapter(value) {
       exportAdapter.set(value);
+    },
+    get thumbnailAdapter() {
+      return thumbnailAdapter?.get() ?? localThumbnailAdapter;
+    },
+    set thumbnailAdapter(value) {
+      localThumbnailAdapter = value;
+      thumbnailAdapter?.set(value);
     },
   };
 };
@@ -506,6 +519,9 @@ export const applyFileViewerRenderSurfaceState = <
   }
   if ('exportAdapter' in state) {
     target.exportAdapter = state.exportAdapter ?? null;
+  }
+  if ('thumbnailAdapter' in state) {
+    target.thumbnailAdapter = state.thumbnailAdapter ?? null;
   }
 
   return target;
@@ -638,7 +654,7 @@ export const resetFileViewerRenderSurface = <
   disposeOptions,
 }: ResetFileViewerRenderSurfaceInput<Session>) => {
   const session = disposeActiveFileViewerRendererSession(surfaceState, disposeOptions) as Session | null;
-  applyFileViewerRenderSurfaceState(surfaceState, { exportAdapter: null });
+  applyFileViewerRenderSurfaceState(surfaceState, { exportAdapter: null, thumbnailAdapter: null });
   applyFileViewerRenderReadinessState(readinessState, {
     renderedReady: false,
     progressiveReady: false,
@@ -903,15 +919,19 @@ export const buildFileRenderContextFromLoadContext = ({
   source,
   surface,
   options,
+  signal,
   registerExportAdapter,
+  registerThumbnailAdapter,
   renderContext,
 }: RendererLoadContext): FileRenderContext => ({
   filename: source.filename,
   url: source.url,
   streamUrl: source.url,
+  signal,
   options,
   surface,
   registerExportAdapter,
+  registerThumbnailAdapter,
   ...renderContext,
 });
 

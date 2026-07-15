@@ -51,6 +51,95 @@ export interface ResolveFileViewerAssetUrlOptions {
   trimTrailingSlash?: boolean;
 }
 
+type FileViewerRuntimeAssetBaseCandidate = {
+  url: string;
+  score: number;
+};
+
+const resolveFileViewerScriptAssetBaseCandidate = (
+  script: HTMLScriptElement,
+  documentBaseUrl: string,
+  index: number
+): FileViewerRuntimeAssetBaseCandidate | null => {
+  try {
+    const rawScriptUrl = script.src || script.getAttribute('src') || '';
+    if (!rawScriptUrl) {
+      return null;
+    }
+
+    const scriptUrl = new URL(rawScriptUrl, documentBaseUrl);
+    const viteClient = scriptUrl.pathname.match(/^(.*\/)@vite\/client$/i);
+    const isSourceModule = /\/(?:src|node_modules|@fs|@id|@vite)(?:\/|$)/i.test(
+      scriptUrl.pathname
+    );
+    // Start at the first emitted asset directory so nested layouts such as
+    // `static/js` and `assets/js/chunks` resolve to the deployment root.
+    // Source trees are excluded above and must never become a public base.
+    const assetDirectory = isSourceModule
+      ? null
+      : scriptUrl.pathname.match(
+          /^(.*?\/)(?:assets|static|js)(?:\/[^/]*)*\/[^/]+\.(?:m?js)$/i
+        );
+    const entryScript = isSourceModule
+      ? null
+      : scriptUrl.pathname.match(
+          /^(.*\/)(?:app|index|main|runtime|umi)(?:[.-][^/]*)?\.(?:m?js)$/i
+        );
+    const basePath = viteClient?.[1] || (!isSourceModule ? assetDirectory?.[1] : null) || entryScript?.[1];
+    if (!basePath) {
+      return null;
+    }
+
+    const url = new URL(basePath, scriptUrl).href;
+    const documentUrl = new URL(documentBaseUrl);
+    const candidateUrl = new URL(url);
+    const scriptName = scriptUrl.pathname.slice(scriptUrl.pathname.lastIndexOf('/') + 1);
+    let score = index / 10_000;
+
+    if (candidateUrl.origin === documentUrl.origin) {
+      score += 8;
+    }
+    if (documentUrl.pathname.startsWith(candidateUrl.pathname)) {
+      score += 4;
+    }
+    if (script.type === 'module') {
+      score += 2;
+    }
+    if (/^(?:app|index|main|runtime|umi)(?:[.-]|$)/i.test(scriptName)) {
+      score += 2;
+    }
+    if (viteClient) {
+      score += 8;
+    }
+
+    return { url, score };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Resolves the stable public base for runtime assets without reading
+ * bundler-specific environment metadata or webpack public-path variables.
+ * Explicit HTML `<base>` configuration stays authoritative; for SPA fallback
+ * routes, emitted Vite/Webpack/UMI entry scripts reveal the deployment root
+ * more reliably than the route-derived page URL.
+ */
+export const resolveFileViewerRuntimeAssetBaseUrl = (documentRef: Document) => {
+  const documentBaseUrl = documentRef.baseURI || documentRef.URL || 'file:///';
+
+  if (documentRef.querySelector('base[href]')) {
+    return documentBaseUrl;
+  }
+
+  const candidates = Array.from(documentRef.querySelectorAll<HTMLScriptElement>('script[src]'))
+    .map((script, index) => resolveFileViewerScriptAssetBaseCandidate(script, documentBaseUrl, index))
+    .filter((candidate): candidate is FileViewerRuntimeAssetBaseCandidate => Boolean(candidate))
+    .sort((left, right) => right.score - left.score);
+
+  return candidates[0]?.url || documentBaseUrl;
+};
+
 export interface ResolvedFileViewerCadAssetUrls {
   wasmPath: string;
   workerUrl: string;
@@ -403,12 +492,15 @@ export const resolveFileViewerArchiveWorkerUrl = (
 
 export const resolveFileViewerArchiveWasmUrl = (
   options?: Pick<FileViewerArchiveOptions, 'wasmUrl'> | null,
-  fallback = ''
+  fallback = '',
+  documentBaseUrl?: string
 ) => {
   if (!options?.wasmUrl) {
     return fallback;
   }
-  return resolveFileViewerAssetUrl(options.wasmUrl, fallback || options.wasmUrl);
+  return resolveFileViewerAssetUrl(options.wasmUrl, fallback || options.wasmUrl, {
+    documentBaseUrl,
+  });
 };
 
 export const resolveFileViewerCadAssetUrls = (

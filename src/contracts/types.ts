@@ -679,6 +679,33 @@ export interface FileViewerPresentationOptions {
 
 export type FileRenderExportMode = 'export' | 'print';
 
+export type FileViewerRenderPurpose = 'preview' | 'thumbnail';
+
+export type FileViewerThumbnailFormat = 'webp' | 'jpeg' | 'png';
+
+export type FileViewerThumbnailFit = 'contain' | 'cover';
+
+export interface FileViewerThumbnailCaptureOptions {
+  width: number;
+  height: number;
+  format: FileViewerThumbnailFormat;
+  quality: number;
+  fit: FileViewerThumbnailFit;
+  background: string;
+  signal?: AbortSignal;
+}
+
+export interface FileRenderThumbnailAdapter {
+  /** Prepare lazy content immediately before capture. */
+  beforeCapture?: (options: FileViewerThumbnailCaptureOptions) => void | Promise<void>;
+  /** Identifies a capture result that comes from packaged metadata rather than rendered content. */
+  captureSource?: 'embedded' | 'rendered';
+  /** A renderer-native fast path. Returning null delegates to the DOM fallback. */
+  capture?: (options: FileViewerThumbnailCaptureOptions) => Blob | null | Promise<Blob | null>;
+  /** The first page/slide/sheet/cover element used by the DOM fallback. */
+  getTarget?: (options: FileViewerThumbnailCaptureOptions) => Element | null | Promise<Element | null>;
+}
+
 export interface FileRenderExportOptions {
   mode: FileRenderExportMode;
   title: string;
@@ -689,6 +716,8 @@ export interface FileRenderExportAdapter {
   exportHtml?: boolean;
   includeDocumentStyles?: boolean;
   beforeSnapshot?: () => Promise<void> | void;
+  /** Live page surfaces used by the interactive print-mask designer. */
+  getPrintMaskPages?: () => readonly HTMLElement[];
   printStyle?: string | ((options: FileRenderExportOptions) => Promise<string> | string);
   toHtml?: (options: FileRenderExportOptions) => Promise<string> | string;
 }
@@ -697,9 +726,12 @@ export interface FileRenderContext {
   filename?: string;
   url?: string;
   streamUrl?: string;
+  signal?: AbortSignal;
   options?: FileViewerOptions;
   surface?: RenderSurface;
   registerExportAdapter?: (adapter: FileRenderExportAdapter | null) => void;
+  registerThumbnailAdapter?: (adapter: FileRenderThumbnailAdapter | null) => void;
+  renderPurpose?: FileViewerRenderPurpose;
   onProgressiveRender?: () => void;
   renderNestedBuffer?: (
     buffer: ArrayBuffer,
@@ -1388,6 +1420,8 @@ export interface FileViewerPrintMaskRegion {
   top: number;
   width: number;
   height: number;
+  /** Zero-based rendered page index. Omitted regions retain legacy whole-document coordinates. */
+  pageIndex?: number;
 }
 
 export interface FileViewerPrintMaskOptions {
@@ -1465,6 +1499,7 @@ export interface RendererLoadContext {
   options: FileViewerOptions;
   signal?: AbortSignal;
   registerExportAdapter?: (adapter: FileRenderExportAdapter | null) => void;
+  registerThumbnailAdapter?: (adapter: FileRenderThumbnailAdapter | null) => void;
   renderContext?: FileRenderContext;
 }
 
@@ -1542,9 +1577,16 @@ export type FileViewerRendererPresetInput<Handler = FileRenderHandler> =
   | FileViewerRendererPluginInput<Handler>
   | readonly FileViewerRendererPresetInput<Handler>[];
 
+export interface FileViewerLoadOptions {
+  signal?: AbortSignal;
+}
+
 export interface FileViewerInstance {
   readonly container: HTMLElement;
-  load(source: FileViewerSource): Promise<RendererSession | null>;
+  /** Installs configured renderer plugins without loading a document. */
+  prepare?(): Promise<void>;
+  load(source: FileViewerSource, options?: FileViewerLoadOptions): Promise<RendererSession | null>;
+  unload?(reason?: FileViewerLifecycleContext['reason']): Promise<void>;
   destroy(reason?: FileViewerLifecycleContext['reason']): Promise<void>;
   updateOptions(options: Partial<FileViewerOptions>): void;
   getCapabilities(extension?: string): FileViewerOperationAvailability;
@@ -1552,6 +1594,8 @@ export interface FileViewerInstance {
   getSource(): NormalizedFileViewerSource | null;
   registerExportAdapter(adapter: FileRenderExportAdapter | null): void;
   getExportAdapter(): FileRenderExportAdapter | null;
+  registerThumbnailAdapter?(adapter: FileRenderThumbnailAdapter | null): void;
+  getThumbnailAdapter?(): FileRenderThumbnailAdapter | null;
   download(options?: FileViewerDownloadOptions): Promise<void>;
   exportHtml(options?: FileViewerExportHtmlOptions): Promise<string>;
   print(options?: FileViewerPrintOptions): Promise<void>;

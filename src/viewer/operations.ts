@@ -500,8 +500,10 @@ export const createFileViewerOperationActionHandlers = ({
           throw new Error(translateFileViewerMessage(resolveI18n(), 'error.noExportContent'));
         }
         const { openFileViewerPrintMaskDesignerAsync } = await import('../features/printMaskLoader');
+        const adapter = getAdapter?.() ?? null;
         const result = await openFileViewerPrintMaskDesignerAsync({
           root: source,
+          pages: adapter?.getPrintMaskPages?.(),
           i18n: resolveI18n(),
           color: options.mask?.color,
           initialRegions: options.mask?.regions,

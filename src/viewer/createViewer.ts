@@ -62,6 +62,7 @@ import { buildFileViewerWatermarkInlineStyle } from '../features/watermark';
 import { createFileViewerUnsupportedState } from './state';
 import type {
   FileRenderExportAdapter,
+  FileRenderThumbnailAdapter,
   FileRenderHandler,
   FileViewerAiOptions,
   FileViewerApplyViewStateOptions,
@@ -77,6 +78,7 @@ import type {
   FileViewerOperationType,
   FileViewerOptions,
   FileViewerPrintOptions,
+  FileViewerRenderPurpose,
   FileViewerRendererPluginInput,
   FileViewerSource,
   FileViewerViewState,
@@ -90,6 +92,7 @@ export interface CreateViewerOptions {
   options?: FileViewerOptions;
   signal?: AbortSignal;
   onEvent?: FileViewerEventHandler;
+  renderPurpose?: FileViewerRenderPurpose;
 }
 
 const emitLifecycle = async (
@@ -141,6 +144,31 @@ const resolveAutoRenderersEnabled = (options: FileViewerOptions) => {
     return setting.enabled;
   }
   return (options.rendererMode || 'extend') !== 'replace';
+};
+
+const createFileViewerLoadSignal = (
+  controller: AbortController | null,
+  signals: Array<AbortSignal | undefined>
+) => {
+  if (!controller) {
+    return signals.find(signal => signal);
+  }
+  const removeListeners: Array<() => void> = [];
+  const cleanup = () => removeListeners.splice(0).forEach(remove => remove());
+  controller.signal.addEventListener('abort', cleanup, { once: true });
+  for (const signal of signals) {
+    if (!signal) {
+      continue;
+    }
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      break;
+    }
+    const onAbort = () => controller.abort(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    removeListeners.push(() => signal.removeEventListener('abort', onAbort));
+  }
+  return controller.signal;
 };
 
 const renderMissingRendererState = (
@@ -566,6 +594,7 @@ export const createViewer = (
     applyFileViewerRenderSurfaceState(renderSurfaceState, {
       session: null,
       exportAdapter: null,
+      thumbnailAdapter: null,
     });
     removeWatermarkOverlay();
     await documentActions.clearDocumentState();
@@ -580,8 +609,16 @@ export const createViewer = (
 
   const instance: FileViewerInstance = {
     container,
-    async load(source: FileViewerSource) {
+    async prepare() {
+      await ensureRendererPluginsInstalled();
+    },
+    async load(source: FileViewerSource, loadOptions = {}) {
       const version = requestScope.requestController.createVersion();
+      const requestAbortController = requestScope.requestController.createAbortController();
+      const loadSignal = createFileViewerLoadSignal(requestAbortController, [
+        createOptions.signal,
+        loadOptions.signal,
+      ]);
       await destroyCurrent('replace');
       await ensureRendererPluginsInstalled();
 
@@ -616,11 +653,19 @@ export const createViewer = (
           source: normalized,
           surface,
           options,
-          signal: createOptions.signal,
+          signal: loadSignal,
           registerExportAdapter: adapter => {
             if (requestScope.isCurrentRequest(version)) {
               applyFileViewerRenderSurfaceState(renderSurfaceState, { exportAdapter: adapter });
             }
+          },
+          registerThumbnailAdapter: adapter => {
+            if (requestScope.isCurrentRequest(version)) {
+              applyFileViewerRenderSurfaceState(renderSurfaceState, { thumbnailAdapter: adapter });
+            }
+          },
+          renderContext: {
+            renderPurpose: createOptions.renderPurpose || 'preview',
           },
         });
       } catch (error) {
@@ -650,6 +695,10 @@ export const createViewer = (
       emitZoomAndOperationAvailabilityChange();
       await emitLifecycle(options, createOptions.onEvent, 'load-complete', normalized, version, startedAt);
       return session;
+    },
+    async unload(reason = 'replace') {
+      requestScope.requestController.createVersion();
+      await destroyCurrent(reason);
     },
     async destroy(reason = 'component-unmount') {
       requestScope.requestController.createVersion();
@@ -686,6 +735,12 @@ export const createViewer = (
     },
     getExportAdapter() {
       return renderSurfaceState.exportAdapter;
+    },
+    registerThumbnailAdapter(adapter: FileRenderThumbnailAdapter | null) {
+      applyFileViewerRenderSurfaceState(renderSurfaceState, { thumbnailAdapter: adapter });
+    },
+    getThumbnailAdapter() {
+      return renderSurfaceState.thumbnailAdapter;
     },
     async download(downloadOptions: FileViewerDownloadOptions = {}) {
       const source = createFileViewerOriginalSourceStateFromNormalizedSource(currentSource);
@@ -735,6 +790,7 @@ export const createViewer = (
     async printWithMask(printOptions: FileViewerPrintOptions = {}) {
       const result = await openFileViewerPrintMaskDesignerAsync({
         root: container,
+        pages: renderSurfaceState.exportAdapter?.getPrintMaskPages?.(),
         i18n: options,
         color: printOptions.mask?.color,
         initialRegions: printOptions.mask?.regions,

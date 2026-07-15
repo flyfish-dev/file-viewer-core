@@ -5,6 +5,7 @@ import type {
   FileViewerPrintMaskOptions,
 } from '../contracts/types'
 import {
+  applyFileViewerPagePrintMasksToHtml,
   buildFileViewerPrintMaskOverlayHtml,
   FILE_VIEWER_PRINT_MASK_STYLE,
   normalizeFileViewerPrintMaskOptions,
@@ -322,10 +323,18 @@ export const buildExportHtmlDocument = ({
   const watermark = watermarkInlineStyle
     ? `<div class="viewer-export-watermark" style="${watermarkInlineStyle}"></div>`
     : ''
-  const maskHtml = buildFileViewerPrintMaskOverlayHtml(mask)
+  const normalizedMask = normalizeFileViewerPrintMaskOptions(mask)
+  const globalMask = normalizedMask
+    ? {
+        ...normalizedMask,
+        regions: normalizedMask.regions?.filter(region => region.pageIndex === undefined),
+      }
+    : null
+  const maskHtml = buildFileViewerPrintMaskOverlayHtml(globalMask)
+  const maskedContentHtml = applyFileViewerPagePrintMasksToHtml(contentHtml, normalizedMask)
   const styles = includeDocumentStyles ? collectDocumentStyles() : ''
   const printOverrideStyle = printStyle ? `<style data-viewer-print-style>${printStyle}</style>` : ''
-  const maskStyle = maskHtml ? `<style data-viewer-print-mask-style>${FILE_VIEWER_PRINT_MASK_STYLE}</style>` : ''
+  const maskStyle = normalizedMask ? `<style data-viewer-print-mask-style>${FILE_VIEWER_PRINT_MASK_STYLE}</style>` : ''
   const safeTitle = escapeHtmlAttribute(title)
 
   return `<!doctype html>
@@ -340,7 +349,7 @@ export const buildExportHtmlDocument = ({
 </head>
 <body>
   <main class="viewer-export-shell">
-    <div class="viewer-export-content">${contentHtml}</div>
+    <div class="viewer-export-content">${maskedContentHtml}</div>
     ${maskHtml}
     ${watermark}
   </main>

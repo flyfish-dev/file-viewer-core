@@ -141,6 +141,9 @@ export default async function renderImage(
   const t = createFileViewerTranslator(context?.options);
   const documentRef = target.ownerDocument || document;
   const src = await resolveImageUrl(buffer, type);
+  context?.registerThumbnailAdapter?.({
+    capture: () => new Blob([buffer], { type: getImageBlobType(type) }),
+  });
   let userZoom = 1;
   let fitScale = 1;
   let currentScale = 1;
@@ -290,6 +293,7 @@ export default async function renderImage(
   return {
     $el: target,
     unmount() {
+      context?.registerThumbnailAdapter?.(null);
       unregisterFileViewerZoomProvider(root);
       resizeObserver.disconnect();
       image.removeEventListener('load', updateViewportSize);
