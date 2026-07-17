@@ -278,7 +278,15 @@ export const executeFileViewerDownloadOperation = async ({
     fallback: DEFAULT_FILE_VIEWER_DOWNLOAD_FILENAME,
   });
 
-  if (source.buffer) {
+  // PDF.js transfers ArrayBuffer-backed data to its worker. After a successful
+  // render the original buffer can therefore be detached (byteLength === 0),
+  // while the File or URL retained by the viewer is still the complete source.
+  // Preserve the existing buffer-first contract for non-empty buffers, but do
+  // not turn a detached buffer into a zero-byte download.
+  if (
+    source.buffer &&
+    (source.buffer.byteLength > 0 || (!source.file && !source.url))
+  ) {
     triggerFileViewerBlobDownload(
       new Blob([source.buffer], { type: source.mimeType || source.file?.type || 'application/octet-stream' }),
       resolvedFilename
@@ -286,12 +294,27 @@ export const executeFileViewerDownloadOperation = async ({
     return true;
   }
 
+  if (source.file && (source.file.size > 0 || !source.url)) {
+    triggerFileViewerBlobDownload(source.file, resolvedFilename);
+    return true;
+  }
+
+  if (source.url) {
+    triggerFileViewerUrlDownload(source.url, resolvedFilename);
+    return true;
+  }
+
+  // Empty local files are valid sources. These final fallbacks preserve their
+  // intentional zero-byte downloads when no complete File or URL is available.
   if (source.file) {
     triggerFileViewerBlobDownload(source.file, resolvedFilename);
     return true;
   }
 
-  triggerFileViewerUrlDownload(source.url as string, resolvedFilename);
+  triggerFileViewerBlobDownload(
+    new Blob([source.buffer as ArrayBuffer], { type: source.mimeType || 'application/octet-stream' }),
+    resolvedFilename
+  );
   return true;
 };
 
