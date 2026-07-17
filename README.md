@@ -70,6 +70,16 @@ const cadAssets = resolveFileViewerRendererAssets('cad', {
 })
 ```
 
+For non-Vite hosts or custom static directories, configure one runtime asset
+base before loading a file. Renderer-specific URLs still take priority. The
+Vite plugin sets this automatically from `copyAssets.baseDir`.
+
+```ts
+import { setDefaultFileViewerAssetBaseUrl } from '@file-viewer/core'
+
+setDefaultFileViewerAssetBaseUrl('/tenant/static/file-viewer/')
+```
+
 The manifest API lets wrappers and deployment scripts discover archive, DOCX, Spreadsheet, CAD, Typst and data-asset worker/WASM resources from the same core contract instead of hard-coding per-framework paths. Spreadsheet assets remain part of the shared deployment contract for `@file-viewer/renderer-spreadsheet`; CAD assets remain part of the shared deployment contract for `@file-viewer/renderer-cad`; archive assets remain part of the shared deployment contract for `@file-viewer/renderer-archive`; DOCX assets remain part of the shared deployment contract for `@file-viewer/renderer-word`; SQLite WASM asset resolution remains in core so `@file-viewer/renderer-data` and deployment tools share one stable offline path.
 
 Official documentation: https://doc.file-viewer.app/

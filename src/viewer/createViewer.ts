@@ -54,6 +54,7 @@ import {
   createFileViewerRenderSurfaceState,
   createFileViewerRenderSurface,
   removeFileViewerRenderTarget,
+  syncFileViewerRenderSurfaceBackground,
 } from '../rendering/handler';
 import { createFileViewerCoreRendererRegistry } from '../renderers/index';
 import { createFileViewerRequestScope } from '../source/loading';
@@ -340,6 +341,7 @@ export const createViewer = (
       target.style.height = '100%';
       surface.container.style.height = '100%';
     }
+    syncFileViewerRenderSurfaceBackground(target, options);
     currentRenderTarget = target;
     return surface;
   };
@@ -633,7 +635,9 @@ export const createViewer = (
       const startedAt = Date.now();
       await emitLifecycle(options, createOptions.onEvent, 'load-start', normalized, version, startedAt);
 
-      const surface = createRenderTarget(renderer?.id !== 'office-presentation');
+      const surface = createRenderTarget(
+        renderer?.id !== 'office-presentation' && renderer?.id !== 'office-presentation-binary'
+      );
       const target = surface.container;
       const targetHost = surface.host || target;
       currentDocumentRoot = target;
@@ -715,6 +719,7 @@ export const createViewer = (
         ...options,
         ...nextOptions,
       };
+      syncFileViewerRenderSurfaceBackground(currentRenderTarget, options);
       syncWatermarkOverlay();
       if ('fit' in nextOptions && nextOptions.fit !== previousFit) {
         fitController.resetAutoFit();

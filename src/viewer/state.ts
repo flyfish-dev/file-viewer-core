@@ -51,6 +51,7 @@ const extensionLabel = (extension: string) => {
 const rendererPackageById: Record<string, string> = {
   'office-word-openxml': '@file-viewer/renderer-word',
   'office-word-binary': '@file-viewer/renderer-word',
+  'office-presentation-binary': '@file-viewer/renderer-presentation',
   'office-presentation': '@file-viewer/renderer-presentation',
   'open-document': '@file-viewer/renderer-word',
   'spreadsheet-openxml': '@file-viewer/renderer-spreadsheet',
@@ -78,6 +79,7 @@ const rendererPackageById: Record<string, string> = {
 const officeRendererIds = new Set([
   'office-word-openxml',
   'office-word-binary',
+  'office-presentation-binary',
   'office-presentation',
   'open-document',
   'spreadsheet-openxml',
@@ -308,10 +310,18 @@ const resolveKnownFileViewerErrorMessage = (
   return key ? translateFileViewerMessage(i18n, key) : message;
 };
 
+const readFileViewerErrorProperty = (error: object, key: string) => {
+  try {
+    return (error as Record<string, unknown>)[key];
+  } catch {
+    return undefined;
+  }
+};
+
 export const normalizeFileViewerErrorMessage = (
   error: unknown,
   i18n?: FileViewerI18nInput
-) => {
+): string => {
   if (error instanceof Error) {
     return resolveKnownFileViewerErrorMessage(error.message, i18n);
   }
@@ -321,7 +331,22 @@ export const normalizeFileViewerErrorMessage = (
   if (error === undefined || error === null) {
     return translateFileViewerMessage(i18n, 'error.unknown');
   }
-  return String(error);
+  if (typeof error === 'object') {
+    const message = readFileViewerErrorProperty(error, 'message');
+    if (typeof message === 'string' && message.trim()) {
+      return resolveKnownFileViewerErrorMessage(message, i18n);
+    }
+
+    const reason = readFileViewerErrorProperty(error, 'reason');
+    if (reason !== undefined && reason !== error) {
+      return normalizeFileViewerErrorMessage(reason, i18n);
+    }
+  }
+
+  const fallback = String(error);
+  return fallback === '[object Object]'
+    ? translateFileViewerMessage(i18n, 'error.unknown')
+    : fallback;
 };
 
 export const formatFileViewerErrorMessage: FileViewerErrorMessageFormatter = (prefix, error, i18n) => {

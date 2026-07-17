@@ -159,7 +159,6 @@ export const resolveFileViewerFitScale = ({
   viewportHeight,
   contentWidth,
   contentHeight,
-  currentScale = 1,
   minScale,
   maxScale,
 }: ResolveFileViewerFitScaleInput) => {

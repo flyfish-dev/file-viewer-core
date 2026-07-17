@@ -74,6 +74,7 @@ const SKIP_SELECTOR = [
   '.state-panel',
   '.pdf-toolbar',
   '.pdf-nav-pane',
+  '[aria-hidden="true"]',
   '.flyfish-search-match',
   '.textLayer',
   '.annotationLayer',

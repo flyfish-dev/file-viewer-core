@@ -93,6 +93,13 @@ export const FILE_VIEWER_LOADING_THEME_MAP: Record<string, FileViewerLoadingThem
     label: '表格数据',
     hint: '正在准备行列数据和基础样式。'
   },
+  tsv: {
+    accent: '#21a366',
+    soft: 'rgba(33, 163, 102, 0.12)',
+    badge: 'X',
+    label: '表格数据',
+    hint: '正在准备行列数据和基础样式。'
+  },
   ppt: {
     accent: '#f28b27',
     soft: 'rgba(242, 139, 39, 0.12)',
@@ -416,6 +423,7 @@ const FILE_VIEWER_LOADING_COPY_KEYS: Record<string, { label: FileViewerMessageKe
   xls: { label: 'loading.sheet.label', hint: 'loading.sheet.hint' },
   xlsx: { label: 'loading.sheet.label', hint: 'loading.sheet.hint' },
   csv: { label: 'loading.csv.label', hint: 'loading.csv.hint' },
+  tsv: { label: 'loading.csv.label', hint: 'loading.csv.hint' },
   ppt: { label: 'loading.presentation.label', hint: 'loading.presentation.hint' },
   pptx: { label: 'loading.presentation.label', hint: 'loading.presentation.hint' },
   pdf: { label: 'loading.pdf.label', hint: 'loading.pdf.hint' },

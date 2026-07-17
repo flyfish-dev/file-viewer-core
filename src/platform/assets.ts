@@ -4,6 +4,7 @@ import type {
   FileViewerDataOptions,
   FileViewerDocxOptions,
   FileViewerDrawingOptions,
+  FileViewerModelOptions,
   FileViewerOptions,
   FileViewerPdfOptions,
   FileViewerPresentationOptions,
@@ -16,6 +17,12 @@ export const DEFAULT_FILE_VIEWER_ARCHIVE_WASM_PATH = 'vendor/libarchive/libarchi
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH = 'vendor/docx/docx.worker.js';
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH = 'vendor/docx/jszip.min.js';
 export const DEFAULT_FILE_VIEWER_PRESENTATION_WORKER_PATH = 'vendor/pptx/pptx.worker.js';
+export const DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH = 'vendor/ppt';
+export const DEFAULT_FILE_VIEWER_PPT_MODULE_PATH = `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/index.mjs`;
+export const DEFAULT_FILE_VIEWER_PPT_WORKER_PATH = `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/worker.mjs`;
+export const DEFAULT_FILE_VIEWER_PPT_FRAME_CACHE_PATH = `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/frame-cache.mjs`;
+export const DEFAULT_FILE_VIEWER_PPT_WASM_PATH = `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/ppt-native.wasm`;
+export const DEFAULT_FILE_VIEWER_PPT_FONT_PATH = `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/ppt-font-cjk.otf`;
 export const DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH = 'vendor/xlsx/sheet.worker.js';
 export const DEFAULT_FILE_VIEWER_PDF_WORKER_PATH = 'vendor/pdf/pdf.worker.mjs';
 export const DEFAULT_FILE_VIEWER_PDF_CMAP_PATH = 'vendor/pdf/cmaps/';
@@ -27,6 +34,8 @@ export const DEFAULT_FILE_VIEWER_DRAWIO_ASSET_PATH = 'vendor/drawio/';
 export const DEFAULT_FILE_VIEWER_CAD_WASM_PATH = 'wasm/cad/';
 export const DEFAULT_FILE_VIEWER_CAD_WORKER_PATH = 'wasm/cad/dwg-worker.js';
 export const DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH = 'wasm/cad/dwfv-render.wasm';
+export const DEFAULT_FILE_VIEWER_CAD_LIBREDWG_SCRIPT_PATH = 'wasm/cad/libredwg-web.js';
+export const DEFAULT_FILE_VIEWER_CAD_LIBREDWG_WASM_PATH = 'wasm/cad/libredwg-web.wasm';
 export const DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL =
   'wasm/typst/typst_ts_web_compiler_bg.wasm';
 export const DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_URL =
@@ -44,6 +53,19 @@ export const DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_PACKAGE_PATH =
   '@myriaddreamin/typst-ts-renderer/pkg/typst_ts_renderer_bg.wasm';
 export const DEFAULT_FILE_VIEWER_DATA_SQL_WASM_URL = 'wasm/data/sql-wasm.wasm';
 export const DEFAULT_FILE_VIEWER_DATA_SQL_WASM_PACKAGE_PATH = 'sql.js/dist/sql-wasm.wasm';
+export const DEFAULT_FILE_VIEWER_MODEL_WORKER_URL = 'wasm/model/occt-worker.js';
+export const DEFAULT_FILE_VIEWER_MODEL_RUNTIME_URL = 'wasm/model/occt-import-js.js';
+export const DEFAULT_FILE_VIEWER_MODEL_WASM_URL = 'wasm/model/occt-import-js.wasm';
+export const DEFAULT_FILE_VIEWER_MODEL_OCCT_LICENSE_URL = 'wasm/model/LICENSE.occt.txt';
+export const DEFAULT_FILE_VIEWER_MODEL_IMPORT_LICENSE_URL = 'wasm/model/LICENSE.occt-import-js.txt';
+export const DEFAULT_FILE_VIEWER_MODEL_RUNTIME_PACKAGE_PATH =
+  'occt-import-js/dist/occt-import-js.js';
+export const DEFAULT_FILE_VIEWER_MODEL_WASM_PACKAGE_PATH =
+  'occt-import-js/dist/occt-import-js.wasm';
+export const DEFAULT_FILE_VIEWER_MODEL_OCCT_LICENSE_PACKAGE_PATH =
+  'occt-import-js/dist/license.occt.txt';
+export const DEFAULT_FILE_VIEWER_MODEL_IMPORT_LICENSE_PACKAGE_PATH =
+  'occt-import-js/dist/license.occt-import-js.txt';
 
 export interface ResolveFileViewerAssetUrlOptions {
   baseUrl?: string;
@@ -56,15 +78,51 @@ type FileViewerRuntimeAssetBaseCandidate = {
   score: number;
 };
 
+const automaticFileViewerAssetBaseUrl = Symbol('automatic-file-viewer-asset-base');
+let configuredFileViewerAssetBaseUrl: string | undefined | typeof automaticFileViewerAssetBaseUrl =
+  automaticFileViewerAssetBaseUrl;
+
+export const normalizeFileViewerAssetBaseUrl = (baseUrl?: string | URL | null) => {
+  if (!baseUrl) {
+    return undefined;
+  }
+  const value = String(baseUrl).trim();
+  if (!value) {
+    return undefined;
+  }
+  return value.endsWith('/') ? value : `${value}/`;
+};
+
+export const setDefaultFileViewerAssetBaseUrl = (baseUrl?: string | URL | null) => {
+  configuredFileViewerAssetBaseUrl = normalizeFileViewerAssetBaseUrl(baseUrl);
+};
+
+export const resetDefaultFileViewerAssetBaseUrl = () => {
+  configuredFileViewerAssetBaseUrl = automaticFileViewerAssetBaseUrl;
+};
+
+const pathDepth = (pathname: string) => pathname.split('/').filter(Boolean).length;
+
+const longestCommonDirectoryPath = (left: string, right: string) => {
+  const leftSegments = left.split('/').filter(Boolean);
+  const rightSegments = right.split('/').filter(Boolean);
+  const common: string[] = [];
+  const length = Math.min(leftSegments.length, Math.max(0, rightSegments.length - 1));
+  for (let index = 0; index < length && leftSegments[index] === rightSegments[index]; index += 1) {
+    common.push(leftSegments[index]);
+  }
+  return common.length ? `/${common.join('/')}/` : '/';
+};
+
 const resolveFileViewerScriptAssetBaseCandidate = (
   script: HTMLScriptElement,
   documentBaseUrl: string,
   index: number
-): FileViewerRuntimeAssetBaseCandidate | null => {
+): FileViewerRuntimeAssetBaseCandidate[] => {
   try {
     const rawScriptUrl = script.src || script.getAttribute('src') || '';
     if (!rawScriptUrl) {
-      return null;
+      return [];
     }
 
     const scriptUrl = new URL(rawScriptUrl, documentBaseUrl);
@@ -72,49 +130,85 @@ const resolveFileViewerScriptAssetBaseCandidate = (
     const isSourceModule = /\/(?:src|node_modules|@fs|@id|@vite)(?:\/|$)/i.test(
       scriptUrl.pathname
     );
-    // Start at the first emitted asset directory so nested layouts such as
-    // `static/js` and `assets/js/chunks` resolve to the deployment root.
-    // Source trees are excluded above and must never become a public base.
-    const assetDirectory = isSourceModule
-      ? null
-      : scriptUrl.pathname.match(
-          /^(.*?\/)(?:assets|static|js)(?:\/[^/]*)*\/[^/]+\.(?:m?js)$/i
-        );
-    const entryScript = isSourceModule
-      ? null
-      : scriptUrl.pathname.match(
-          /^(.*\/)(?:app|index|main|runtime|umi)(?:[.-][^/]*)?\.(?:m?js)$/i
-        );
-    const basePath = viteClient?.[1] || (!isSourceModule ? assetDirectory?.[1] : null) || entryScript?.[1];
-    if (!basePath) {
-      return null;
-    }
-
-    const url = new URL(basePath, scriptUrl).href;
     const documentUrl = new URL(documentBaseUrl);
-    const candidateUrl = new URL(url);
+    const documentPathname = documentUrl.pathname.endsWith('/')
+      ? documentUrl.pathname
+      : `${documentUrl.pathname}/`;
     const scriptName = scriptUrl.pathname.slice(scriptUrl.pathname.lastIndexOf('/') + 1);
-    let score = index / 10_000;
+    const isEntryScript = /^(?:app|index|main|runtime|umi)(?:[.-]|$)/i.test(scriptName);
+    const candidates = new Map<string, FileViewerRuntimeAssetBaseCandidate>();
+    const addCandidate = (basePath: string, quality: number) => {
+      const url = new URL(basePath, scriptUrl).href;
+      const candidateUrl = new URL(url);
+      let score = quality + index / 10_000;
 
-    if (candidateUrl.origin === documentUrl.origin) {
-      score += 8;
-    }
-    if (documentUrl.pathname.startsWith(candidateUrl.pathname)) {
-      score += 4;
-    }
-    if (script.type === 'module') {
-      score += 2;
-    }
-    if (/^(?:app|index|main|runtime|umi)(?:[.-]|$)/i.test(scriptName)) {
-      score += 2;
-    }
+      if (candidateUrl.origin === documentUrl.origin) {
+        score += 8;
+      }
+      if (documentPathname.startsWith(candidateUrl.pathname)) {
+        // Prefer the deepest candidate that is still an ancestor of the SPA
+        // route. This avoids stripping an earlier deployment segment named
+        // `assets` when the emitted suffix is actually `static/js`.
+        score += 16 + pathDepth(candidateUrl.pathname) / 4;
+      }
+      if (script.type === 'module') {
+        score += 2;
+      }
+      if (isEntryScript) {
+        score += 2;
+      }
+      const previous = candidates.get(url);
+      if (!previous || previous.score < score) {
+        candidates.set(url, { url, score });
+      }
+    };
+
     if (viteClient) {
-      score += 8;
+      addCandidate(viteClient[1], 12);
+    }
+    if (isSourceModule) {
+      return [...candidates.values()];
     }
 
-    return { url, score };
+    const pathSegments = scriptUrl.pathname.split('/').filter(Boolean);
+    const directories = pathSegments.slice(0, -1);
+    const emittedDirectoryWeights: Array<{ segments: readonly string[]; weight: number }> = [
+      { segments: ['static', 'js'], weight: 9 },
+      { segments: ['assets', 'js'], weight: 9 },
+      { segments: ['assets', 'chunks'], weight: 8 },
+      { segments: ['assets'], weight: 6 },
+      { segments: ['static'], weight: 6 },
+      { segments: ['js'], weight: 4 },
+    ];
+    emittedDirectoryWeights.forEach(({ segments, weight }) => {
+      for (let segmentIndex = 0; segmentIndex <= directories.length - segments.length; segmentIndex += 1) {
+        const matches = segments.every(
+          (segment, offset) => directories[segmentIndex + offset]?.toLowerCase() === segment
+        );
+        if (!matches) {
+          continue;
+        }
+        const basePath = directories.slice(0, segmentIndex).length
+          ? `/${directories.slice(0, segmentIndex).join('/')}/`
+          : '/';
+        addCandidate(basePath, weight + segments.length);
+      }
+    });
+
+    if (isEntryScript) {
+      const scriptDirectory = scriptUrl.pathname.slice(0, scriptUrl.pathname.lastIndexOf('/') + 1);
+      addCandidate(scriptDirectory, 3);
+    }
+    if (scriptUrl.origin === documentUrl.origin) {
+      addCandidate(
+        longestCommonDirectoryPath(documentUrl.pathname, scriptUrl.pathname),
+        8
+      );
+    }
+
+    return [...candidates.values()];
   } catch {
-    return null;
+    return [];
   }
 };
 
@@ -128,16 +222,35 @@ const resolveFileViewerScriptAssetBaseCandidate = (
 export const resolveFileViewerRuntimeAssetBaseUrl = (documentRef: Document) => {
   const documentBaseUrl = documentRef.baseURI || documentRef.URL || 'file:///';
 
+  if (configuredFileViewerAssetBaseUrl !== automaticFileViewerAssetBaseUrl) {
+    if (!configuredFileViewerAssetBaseUrl) {
+      return documentBaseUrl;
+    }
+    try {
+      return new URL(configuredFileViewerAssetBaseUrl, documentBaseUrl).href;
+    } catch {
+      return configuredFileViewerAssetBaseUrl;
+    }
+  }
+
   if (documentRef.querySelector('base[href]')) {
     return documentBaseUrl;
   }
 
   const candidates = Array.from(documentRef.querySelectorAll<HTMLScriptElement>('script[src]'))
-    .map((script, index) => resolveFileViewerScriptAssetBaseCandidate(script, documentBaseUrl, index))
-    .filter((candidate): candidate is FileViewerRuntimeAssetBaseCandidate => Boolean(candidate))
+    .flatMap((script, index) => resolveFileViewerScriptAssetBaseCandidate(script, documentBaseUrl, index))
     .sort((left, right) => right.score - left.score);
 
   return candidates[0]?.url || documentBaseUrl;
+};
+
+export const getDefaultFileViewerAssetBaseUrl = (documentRef?: Document | null) => {
+  if (configuredFileViewerAssetBaseUrl !== automaticFileViewerAssetBaseUrl) {
+    return configuredFileViewerAssetBaseUrl;
+  }
+  // Core remains environment-neutral: callers that want automatic browser
+  // inference pass their owning Document explicitly.
+  return documentRef ? resolveFileViewerRuntimeAssetBaseUrl(documentRef) : undefined;
 };
 
 export interface ResolvedFileViewerCadAssetUrls {
@@ -154,13 +267,22 @@ export interface ResolvedFileViewerPdfAssetUrls {
   cjkFontFallbackPath: string;
 }
 
+export interface ResolvedFileViewerModelAssetUrls {
+  workerUrl: string;
+  runtimeUrl: string;
+  wasmUrl: string;
+}
+
 export type FileViewerRendererAssetKind =
   | 'directory'
   | 'worker'
   | 'wasm'
   | 'wasm-directory'
   | 'script'
-  | 'bundled-wasm';
+  | 'font'
+  | 'metadata'
+  | 'bundled-wasm'
+  | 'license';
 
 export type FileViewerRendererAssetTarget = 'public' | 'bundled' | 'external';
 
@@ -174,11 +296,18 @@ export type FileViewerRendererAssetOptionPath =
   | 'docx.workerJsZipUrl'
   | 'docx.workerUrl'
   | 'drawing.viewerScriptUrl'
+  | 'model.workerUrl'
+  | 'model.runtimeUrl'
+  | 'model.wasmUrl'
   | 'pdf.workerUrl'
   | 'pdf.cMapUrl'
   | 'pdf.wasmUrl'
   | 'pdf.standardFontDataUrl'
   | 'pdf.cjkFontFallbackPath'
+  | 'presentation.pptModuleUrl'
+  | 'presentation.pptWorkerUrl'
+  | 'presentation.pptWasmUrl'
+  | 'presentation.pptFontUrl'
   | 'presentation.workerUrl'
   | 'spreadsheet.workerUrl'
   | 'typst.compilerWasmUrl'
@@ -214,6 +343,63 @@ export interface ResolveFileViewerRendererAssetsOptions extends ResolveFileViewe
 }
 
 export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRendererAssetManifest[] = [
+  {
+    rendererId: 'model',
+    assets: [
+      {
+        id: 'model-occt-worker',
+        rendererId: 'model',
+        kind: 'worker',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_MODEL_WORKER_URL,
+        optionPath: 'model.workerUrl',
+        description: 'File Viewer worker that runs STEP, IGES, and BREP tessellation off the UI thread.',
+      },
+      {
+        id: 'model-occt-runtime',
+        rendererId: 'model',
+        kind: 'script',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_MODEL_RUNTIME_URL,
+        packagePath: DEFAULT_FILE_VIEWER_MODEL_RUNTIME_PACKAGE_PATH,
+        optionPath: 'model.runtimeUrl',
+        description: 'Self-hosted occt-import-js runtime for browser-native STEP, IGES, and BREP preview.',
+      },
+      {
+        id: 'model-occt-wasm',
+        rendererId: 'model',
+        kind: 'wasm',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_MODEL_WASM_URL,
+        packagePath: DEFAULT_FILE_VIEWER_MODEL_WASM_PACKAGE_PATH,
+        optionPath: 'model.wasmUrl',
+        description: 'OpenCascade WebAssembly geometry kernel used by the model renderer.',
+      },
+      {
+        id: 'model-occt-license',
+        rendererId: 'model',
+        kind: 'license',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_MODEL_OCCT_LICENSE_URL,
+        packagePath: DEFAULT_FILE_VIEWER_MODEL_OCCT_LICENSE_PACKAGE_PATH,
+        description: 'OpenCascade license notice distributed with the browser geometry kernel.',
+      },
+      {
+        id: 'model-occt-import-license',
+        rendererId: 'model',
+        kind: 'license',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_MODEL_IMPORT_LICENSE_URL,
+        packagePath: DEFAULT_FILE_VIEWER_MODEL_IMPORT_LICENSE_PACKAGE_PATH,
+        description: 'occt-import-js license notice distributed with the browser geometry kernel.',
+      },
+    ],
+  },
   {
     rendererId: 'drawing',
     assets: [
@@ -351,6 +537,24 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         optionPath: 'cad.dwfWasmUrl',
         description: 'DWF/DWFx/XPS raster WebAssembly module used by @flyfish-dev/cad-viewer.',
       },
+      {
+        id: 'cad-libredwg-script',
+        rendererId: 'cad',
+        kind: 'script',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_CAD_LIBREDWG_SCRIPT_PATH,
+        description: 'LibreDWG JavaScript runtime loaded by the CAD DWG worker for offline parsing.',
+      },
+      {
+        id: 'cad-libredwg-wasm',
+        rendererId: 'cad',
+        kind: 'wasm',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_CAD_LIBREDWG_WASM_PATH,
+        description: 'LibreDWG WebAssembly runtime loaded by the CAD DWG worker for offline parsing.',
+      },
     ],
   },
   {
@@ -375,6 +579,96 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         defaultPath: DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH,
         optionPath: 'docx.workerJsZipUrl',
         description: 'JSZip runtime loaded by the @file-viewer/docx worker for fully offline DOCX parsing.',
+      },
+    ],
+  },
+  {
+    rendererId: 'office-presentation-binary',
+    assets: [
+      {
+        id: 'ppt-module',
+        rendererId: 'office-presentation-binary',
+        kind: 'script',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_PPT_MODULE_PATH,
+        optionPath: 'presentation.pptModuleUrl',
+        description: 'Official @file-viewer/ppt 0.3 browser entry for PowerPoint 97–2003 preview.',
+      },
+      {
+        id: 'ppt-worker',
+        rendererId: 'office-presentation-binary',
+        kind: 'worker',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_PPT_WORKER_PATH,
+        optionPath: 'presentation.pptWorkerUrl',
+        description: 'Official @file-viewer/ppt 0.3 module Worker.',
+      },
+      {
+        id: 'ppt-frame-cache',
+        rendererId: 'office-presentation-binary',
+        kind: 'script',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_PPT_FRAME_CACHE_PATH,
+        description: 'Bounded IndexedDB frame cache imported by the binary-PPT Worker.',
+      },
+      {
+        id: 'ppt-wasm',
+        rendererId: 'office-presentation-binary',
+        kind: 'wasm',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_PPT_WASM_PATH,
+        optionPath: 'presentation.pptWasmUrl',
+        description: 'Official @file-viewer/ppt 0.3 native WebAssembly parser and renderer.',
+      },
+      {
+        id: 'ppt-cjk-font',
+        rendererId: 'office-presentation-binary',
+        kind: 'font',
+        target: 'public',
+        required: true,
+        defaultPath: DEFAULT_FILE_VIEWER_PPT_FONT_PATH,
+        optionPath: 'presentation.pptFontUrl',
+        description: 'CJK font pack verified and loaded by the binary-PPT runtime.',
+      },
+      {
+        id: 'ppt-runtime-manifest',
+        rendererId: 'office-presentation-binary',
+        kind: 'metadata',
+        target: 'public',
+        required: true,
+        defaultPath: `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/manifest.json`,
+        description: 'Integrity and edition metadata for the official binary-PPT runtime.',
+      },
+      {
+        id: 'ppt-runtime-package',
+        rendererId: 'office-presentation-binary',
+        kind: 'metadata',
+        target: 'public',
+        required: true,
+        defaultPath: `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/package.json`,
+        description: 'Package identity metadata for the official binary-PPT runtime.',
+      },
+      {
+        id: 'ppt-runtime-license',
+        rendererId: 'office-presentation-binary',
+        kind: 'license',
+        target: 'public',
+        required: true,
+        defaultPath: `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/LICENSE`,
+        description: 'License shipped by the independently versioned @file-viewer/ppt package.',
+      },
+      {
+        id: 'ppt-runtime-notice',
+        rendererId: 'office-presentation-binary',
+        kind: 'license',
+        target: 'public',
+        required: true,
+        defaultPath: `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/NOTICE`,
+        description: 'Notices shipped by the independently versioned @file-viewer/ppt package.',
       },
     ],
   },
@@ -472,10 +766,14 @@ export const resolveFileViewerAssetUrl = (
 ) => {
   const raw = value ? String(value) : fallback;
   const documentBaseUrl = options.documentBaseUrl || DEFAULT_FILE_VIEWER_DOCUMENT_BASE_URL;
-  const baseUrl = options.baseUrl
-    ? options.baseUrl.endsWith('/') ? options.baseUrl : `${options.baseUrl}/`
+  const configuredBaseUrl = !value && configuredFileViewerAssetBaseUrl !== automaticFileViewerAssetBaseUrl
+    ? configuredFileViewerAssetBaseUrl
+    : undefined;
+  const preferredBaseUrl = options.baseUrl || configuredBaseUrl;
+  const baseUrl = preferredBaseUrl
+    ? preferredBaseUrl.endsWith('/') ? preferredBaseUrl : `${preferredBaseUrl}/`
     : documentBaseUrl;
-  const resolvedBase = options.baseUrl
+  const resolvedBase = preferredBaseUrl
     ? new URL(baseUrl, documentBaseUrl).href
     : baseUrl;
   const resolved = new URL(raw, resolvedBase).href;
@@ -652,6 +950,27 @@ export const resolveFileViewerDataSqlWasmUrl = (
   );
 };
 
+export const resolveFileViewerModelAssetUrls = (
+  options?: Pick<FileViewerModelOptions, 'workerUrl' | 'runtimeUrl' | 'wasmUrl'> | null,
+  documentBaseUrl?: string
+): ResolvedFileViewerModelAssetUrls => ({
+  workerUrl: resolveFileViewerAssetUrl(
+    options?.workerUrl,
+    DEFAULT_FILE_VIEWER_MODEL_WORKER_URL,
+    { documentBaseUrl }
+  ),
+  runtimeUrl: resolveFileViewerAssetUrl(
+    options?.runtimeUrl,
+    DEFAULT_FILE_VIEWER_MODEL_RUNTIME_URL,
+    { documentBaseUrl }
+  ),
+  wasmUrl: resolveFileViewerAssetUrl(
+    options?.wasmUrl,
+    DEFAULT_FILE_VIEWER_MODEL_WASM_URL,
+    { documentBaseUrl }
+  ),
+});
+
 export const listFileViewerRendererAssetManifests = () => {
   return [...DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS];
 };
@@ -683,6 +1002,12 @@ const getRendererAssetOptionValue = (
       return options?.docx?.workerUrl;
     case 'drawing.viewerScriptUrl':
       return options?.drawing?.viewerScriptUrl;
+    case 'model.workerUrl':
+      return options?.model?.workerUrl;
+    case 'model.runtimeUrl':
+      return options?.model?.runtimeUrl;
+    case 'model.wasmUrl':
+      return options?.model?.wasmUrl;
     case 'pdf.workerUrl':
       return options?.pdf?.workerUrl;
     case 'pdf.cMapUrl':
@@ -693,6 +1018,14 @@ const getRendererAssetOptionValue = (
       return options?.pdf?.standardFontDataUrl;
     case 'pdf.cjkFontFallbackPath':
       return options?.pdf?.cjkFontFallbackPath;
+    case 'presentation.pptModuleUrl':
+      return options?.presentation?.pptModuleUrl;
+    case 'presentation.pptWorkerUrl':
+      return options?.presentation?.pptWorkerUrl;
+    case 'presentation.pptWasmUrl':
+      return options?.presentation?.pptWasmUrl;
+    case 'presentation.pptFontUrl':
+      return options?.presentation?.pptFontUrl;
     case 'presentation.workerUrl':
       return options?.presentation?.workerUrl;
     case 'spreadsheet.workerUrl':
@@ -719,18 +1052,26 @@ export const resolveFileViewerRendererAssets = (
 
   return manifest.assets.map(asset => {
     const optionValue = getRendererAssetOptionValue(resolveOptions.options, asset.optionPath);
-    const raw = optionValue ? String(optionValue) : asset.defaultUrl || asset.defaultPath;
+    const configuredValue = optionValue ? String(optionValue) : undefined;
+    const fallbackValue = asset.defaultUrl || asset.defaultPath;
     const resolved: ResolvedFileViewerRendererAsset = {
       ...asset,
       configured: Boolean(optionValue),
     };
 
-    if (raw) {
-      resolved.url = resolveFileViewerAssetUrl(raw, raw, {
-        baseUrl: resolveOptions.baseUrl,
-        documentBaseUrl: resolveOptions.documentBaseUrl,
-        trimTrailingSlash: asset.kind === 'directory' || asset.kind === 'wasm-directory' || resolveOptions.trimTrailingSlash,
-      });
+    if (configuredValue || fallbackValue) {
+      resolved.url = resolveFileViewerAssetUrl(
+        configuredValue,
+        fallbackValue || configuredValue || '',
+        {
+          baseUrl: resolveOptions.baseUrl,
+          documentBaseUrl: resolveOptions.documentBaseUrl,
+          trimTrailingSlash:
+            asset.kind === 'directory' ||
+            asset.kind === 'wasm-directory' ||
+            resolveOptions.trimTrailingSlash,
+        }
+      );
     }
 
     return resolved;

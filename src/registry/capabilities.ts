@@ -72,7 +72,7 @@ export const createUnsupportedAvailability = (extension: string): FileViewerOper
  * DOM 很容易只得到当前页或当前视口。
  */
 export const ADAPTER_PRINT_REQUIRED_EXTENSIONS = [
-  'docx', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'pdf', 'typ', 'typst',
+  'docx', 'docm', 'dotx', 'dotm', 'doc', 'dot', 'ppt', 'pdf', 'typ', 'typst',
 ] as const;
 
 /**
@@ -91,7 +91,7 @@ export const DOM_PRINTABLE_EXTENSIONS = [
  * 这些格式默认不展示打印按钮，避免导出半截内容。
  */
 export const NON_PRINTABLE_EXTENSIONS = [
-  'xlsx', 'xltx', 'xlsm', 'xlsb', 'xls', 'xlt', 'xltm', 'csv', 'ods', 'fods', 'numbers',
+  'xlsx', 'xltx', 'xlsm', 'xlsb', 'xls', 'xlt', 'xltm', 'csv', 'tsv', 'ods', 'fods', 'numbers',
   ...ARCHIVE_EXTENSIONS,
   'eml', 'msg', 'epub', 'mp4',
   'mp3', 'mpeg', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'aac', 'flac', 'weba',

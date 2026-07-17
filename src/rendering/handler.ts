@@ -264,9 +264,43 @@ export interface CreateFileViewerRenderSurfaceActionHandlersInput<
 }
 
 export const DEFAULT_FILE_VIEWER_RENDER_TARGET_CLASS = 'file-render';
+export const FILE_VIEWER_RENDER_SURFACE_BACKGROUND_PROPERTY = '--file-viewer-render-surface-background';
 
 const FILE_VIEWER_RENDER_HOST_CLASS = 'file-render-host';
 const FILE_VIEWER_SHADOW_RENDER_TARGET_CLASS = 'file-render-shadow-target';
+
+export const normalizeFileViewerRenderSurfaceBackground = (
+  value: unknown
+): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim();
+  return normalized && normalized.toLowerCase() !== 'auto' ? normalized : null;
+};
+
+/**
+ * Keeps the public UI option and the renderer-facing CSS custom property in
+ * sync. Custom properties inherit through Shadow DOM, so setting this on the
+ * render host covers both scoped and shadow-isolated renderer targets.
+ */
+export const syncFileViewerRenderSurfaceBackground = (
+  target: HTMLElement | null | undefined,
+  options?: Pick<FileViewerOptions, 'ui'> | null
+) => {
+  if (!target) {
+    return null;
+  }
+  const background = normalizeFileViewerRenderSurfaceBackground(
+    options?.ui?.surfaceBackground
+  );
+  if (background) {
+    target.style.setProperty(FILE_VIEWER_RENDER_SURFACE_BACKGROUND_PROPERTY, background);
+  } else {
+    target.style.removeProperty(FILE_VIEWER_RENDER_SURFACE_BACKGROUND_PROPERTY);
+  }
+  return background;
+};
 
 export const isFileViewerShadowRoot = (value: unknown): value is ShadowRoot => {
   if (!value || typeof value !== 'object') {

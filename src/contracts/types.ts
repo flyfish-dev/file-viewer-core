@@ -135,6 +135,10 @@ export type FileViewerMessageKey =
   | 'presentation.state.loading'
   | 'presentation.error.title'
   | 'presentation.error.parseFailed'
+  | 'presentation.ppt.state.loading'
+  | 'presentation.ppt.error.title'
+  | 'presentation.ppt.error.parseFailed'
+  | 'presentation.ppt.error.assetHint'
   | 'archive.error.nestedUnsupported'
   | 'archive.loading.readingDirectory'
   | 'archive.loading.readingDirectoryHint'
@@ -666,6 +670,11 @@ export interface FileViewerSpreadsheetOptions {
   workerUrl?: string;
   /** `worker: 'auto'` 时，大于该字节数的表格自动使用静态 Worker，默认 1MB。 */
   workerAutoThreshold?: number;
+  /**
+   * CSV / TSV 文本编码。默认 `auto`：优先 UTF-8 BOM 和严格 UTF-8，
+   * 否则使用浏览器内置 GB18030 解码器（同时覆盖 GBK）。
+   */
+  textEncoding?: 'auto' | 'utf-8' | 'gbk' | 'gb18030';
   /** 允许用户在 Excel / CSV / ODS 预览中拖拽表头边界调整列宽，默认关闭以保持历史行为。 */
   resizableColumns?: boolean;
   /** 允许用户在 Excel / CSV / ODS 预览中拖拽行头边界调整行高，默认关闭以保持历史行为。 */
@@ -673,8 +682,36 @@ export interface FileViewerSpreadsheetOptions {
 }
 
 export interface FileViewerPresentationOptions {
+  /** PPTX/OpenXML Worker URL. This is independent from the binary-PPT Worker. */
   workerUrl?: string | URL;
   workerType?: WorkerType;
+  /** Optional self-hosted native WASM URL used only by the PowerPoint 97–2003 renderer. */
+  pptWasmUrl?: string | URL;
+  /** Optional self-hosted CJK font-pack URL used only by the PowerPoint 97–2003 renderer. */
+  pptFontUrl?: string | URL;
+  /** Optional module Worker URL used only by the PowerPoint 97–2003 renderer. */
+  pptWorkerUrl?: string | URL;
+  /** Selects the binary-PPT Worker path. Defaults to `auto`. */
+  pptWorker?: boolean | 'auto';
+  /** Controls the binary-PPT bounded IndexedDB frame cache. */
+  pptCache?: false | {
+    enabled?: boolean;
+    dbName?: string;
+    maxBytes?: number;
+    maxEntries?: number;
+    maxEntryBytes?: number;
+  };
+  /** Render and retain only binary-PPT slides near the viewport. Defaults to true. */
+  pptVirtualize?: boolean;
+  /** IntersectionObserver overscan for binary-PPT virtualization. Defaults to `150% 0px`. */
+  pptVirtualRootMargin?: string;
+  /** Delay before an offscreen binary-PPT canvas is cached and released. Defaults to 1200ms. */
+  pptReleaseDelayMs?: number;
+  /**
+   * Optional ESM entry override for `@file-viewer/ppt`.
+   * Full packages and the CDN/IIFE distribution provide a packaged default.
+   */
+  pptModuleUrl?: string | URL;
 }
 
 export type FileRenderExportMode = 'export' | 'print';
@@ -785,6 +822,30 @@ export interface FileViewerTypstOptions {
   rendererWasmUrl?: string;
   fontAssetsUrl?: string;
   renderTimeoutMs?: number;
+}
+
+export type FileViewerModelLinearUnit =
+  | 'millimeter'
+  | 'centimeter'
+  | 'meter'
+  | 'inch'
+  | 'foot';
+
+export interface FileViewerModelOptions {
+  /** Self-hosted worker that keeps STEP/IGES/BREP tessellation off the UI thread. */
+  workerUrl?: string;
+  /** Self-hosted occt-import-js runtime loaded by the classic worker. */
+  runtimeUrl?: string;
+  /** Self-hosted OpenCascade WebAssembly module used by the model renderer. */
+  wasmUrl?: string;
+  /** Disable only when Worker is unavailable or a host deliberately accepts main-thread parsing. */
+  useWorker?: boolean;
+  /** Maximum time allowed for geometry-kernel initialization and tessellation. Defaults to 120 seconds. */
+  workerTimeoutMs?: number;
+  linearUnit?: FileViewerModelLinearUnit;
+  linearDeflectionType?: 'bounding_box_ratio' | 'absolute_value';
+  linearDeflection?: number;
+  angularDeflection?: number;
 }
 
 export interface FileViewerDataOptions {
@@ -978,8 +1039,26 @@ export interface FileViewerAiOptions {
 }
 
 export interface FileViewerTextOptions {
-  /** Switches text/code/Markdown to bounded virtual rendering above this byte size. Defaults to 512 KiB. */
+  /**
+   * Shows the renderer-local source metadata toolbar (file type, indexing
+   * status, and line count). Defaults to true. This does not control the
+   * viewer-level operation toolbar.
+   */
+  toolbar?: boolean;
+  /**
+   * Shows a non-selectable, screen-reader-hidden line-number gutter for code and text.
+   * Defaults to false for regular files. The virtual large-text view keeps its
+   * historical visible gutter when this option is omitted; pass false to hide it.
+   */
+  lineNumbers?: boolean;
+  /** Switches text and code to bounded virtual rendering above this byte size. Defaults to 512 KiB. */
   virtualizeAboveBytes?: number;
+  /**
+   * Opts Markdown into source-mode virtual rendering above this byte size.
+   * Markdown stays in its rendered reading view by default; set this only when
+   * an application prefers bounded source inspection for exceptionally large files.
+   */
+  markdownVirtualizeAboveBytes?: number;
   /** Maximum source bytes mounted for one very long logical line at a time. Defaults to 16 KiB. */
   maxRenderedLineBytes?: number;
   /** Extra logical lines mounted above and below the visible viewport. Defaults to 12. */
@@ -994,6 +1073,16 @@ export interface FileViewerUiOptions {
    * archive lists, badges, search inputs, and compact action clusters.
    */
   density?: FileViewerUiDensity;
+  /**
+   * Overrides the workspace behind rendered pages, slides, and other preview
+   * content. Pass any valid CSS background value (for example `transparent`)
+   * to let the host application provide an immersive surface. Omit this value,
+   * or pass `auto`, to keep each renderer's light/dark default.
+   *
+   * This does not change document pages, slide canvases, spreadsheet cells, or
+   * other file-authored backgrounds.
+   */
+  surfaceBackground?: string;
 }
 
 export interface FileViewerOptions {
@@ -1093,6 +1182,7 @@ export interface FileViewerOptions {
   data?: FileViewerDataOptions;
   drawing?: FileViewerDrawingOptions;
   cad?: FileViewerCadOptions;
+  model?: FileViewerModelOptions;
   hooks?: FileViewerLifecycleHooks;
   beforeOperation?: FileViewerBeforeOperation;
 }

@@ -17,7 +17,6 @@ import {
 } from '../viewer/operations';
 import type {
   FileRenderExportAdapter,
-  FileViewerDocumentAnchor,
   FileViewerBeforeOperation,
   FileViewerFileRef,
   FileViewerLifecycleContext,
@@ -28,7 +27,6 @@ import type {
   FileViewerOperationType,
   FileViewerOptions,
   FileViewerResolvedToolbarItem,
-  FileViewerSearchState,
   FileViewerSourceKind,
   FileViewerToolbarActionMap,
   FileViewerToolbarItem,
@@ -848,7 +846,6 @@ export const dispatchFileViewerLifecycleEvent = <
 export const dispatchFileViewerOperationContextEvent = <
   Context extends FileViewerOperationContext,
 >({
-  event,
   context,
   onChange,
 }: DispatchFileViewerOperationContextEventInput<Context>) => {
