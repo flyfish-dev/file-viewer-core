@@ -1089,8 +1089,9 @@ export interface FileViewerOptions {
   theme?: FileViewerThemeMode;
   /**
    * Controls how aggressively the viewer protects its DOM and CSS from the
-   * host page. `auto` keeps framework integrations compatible while allowing
-   * Web Component integrations to opt into Shadow DOM by default.
+   * host page. Standard component packages resolve `auto` to Shadow DOM so
+   * host resets cannot break the toolbar or rendered content. Use `none`
+   * explicitly only for legacy integrations that require deep class overrides.
    */
   styleIsolation?: FileViewerStyleIsolation;
   /**

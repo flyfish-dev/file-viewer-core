@@ -434,12 +434,16 @@ const appendStyleElement = (
   return style;
 };
 
-const canUseAdoptedStyleSheet = (
+const getConstructableStyleSheet = (
   root: ShadowRoot
-): root is ShadowRoot & { adoptedStyleSheets: CSSStyleSheet[] } => {
+): typeof CSSStyleSheet | null => {
+  const constructor = root.ownerDocument.defaultView?.CSSStyleSheet ??
+    (typeof CSSStyleSheet !== 'undefined' ? CSSStyleSheet : undefined);
   return 'adoptedStyleSheets' in root &&
-    typeof CSSStyleSheet !== 'undefined' &&
-    typeof CSSStyleSheet.prototype.replaceSync === 'function';
+    constructor &&
+    typeof constructor.prototype.replaceSync === 'function'
+    ? constructor
+    : null;
 };
 
 export const appendFileViewerStyle = (
@@ -448,8 +452,11 @@ export const appendFileViewerStyle = (
   options: AppendFileViewerStyleOptions = {}
 ): FileViewerStyleHandle => {
   const shadowRoot = getFileViewerShadowRootForNode(target);
-  if (options.adoptedStyleSheet && shadowRoot && canUseAdoptedStyleSheet(shadowRoot)) {
-    const sheet = new CSSStyleSheet();
+  const StyleSheet = shadowRoot ? getConstructableStyleSheet(shadowRoot) : null;
+  if (options.adoptedStyleSheet && shadowRoot && StyleSheet) {
+    // Use the target document's constructor. A stylesheet constructed in the
+    // parent window cannot be adopted by a ShadowRoot owned by an iframe.
+    const sheet = new StyleSheet();
     sheet.replaceSync(css);
     shadowRoot.adoptedStyleSheets = [...shadowRoot.adoptedStyleSheets, sheet];
     return {

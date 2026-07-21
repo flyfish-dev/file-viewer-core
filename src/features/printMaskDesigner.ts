@@ -37,14 +37,19 @@ const DESIGNER_STYLE = `
 .fv-print-mask-toolbar button.primary:hover{background:#0f5f3c;}
 `;
 
-const ensureDesignerStyle = (documentRef: Document) => {
-  if (documentRef.getElementById('fv-print-mask-designer-style')) {
+const ensureDesignerStyle = (root: HTMLElement) => {
+  const documentRef = root.ownerDocument;
+  const treeRoot = root.getRootNode();
+  const styleTarget = treeRoot === documentRef
+    ? documentRef.head
+    : treeRoot as ShadowRoot;
+  if (styleTarget.querySelector('#fv-print-mask-designer-style')) {
     return;
   }
   const style = documentRef.createElement('style');
   style.id = 'fv-print-mask-designer-style';
   style.textContent = DESIGNER_STYLE;
-  documentRef.head.appendChild(style);
+  styleTarget.appendChild(style);
 };
 
 const toPercentRegion = (
@@ -98,7 +103,7 @@ export const openFileViewerPrintMaskDesigner = (
   const pageScoped = providedPages.length > 0;
   const pageElements = pageScoped ? providedPages : [root];
 
-  ensureDesignerStyle(documentRef);
+  ensureDesignerStyle(root);
 
   const ensureOverlayContainingBlock = (element: HTMLElement) => {
     const previousPosition = element.style.position;

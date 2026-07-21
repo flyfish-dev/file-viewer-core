@@ -4,7 +4,7 @@ Framework-neutral TypeScript foundation for Flyfish File Viewer.
 
 This package is the migration base for the next architecture: one pure TypeScript core package with internal `headless`, `browser`, and `renderers` layers, plus multiple native standard component packages for Vue, React, pure JavaScript, jQuery, and Svelte. Core owns the shared format matrix, source detection, renderer protocol, capability calculation, lifecycle context, operation guards, operation/event/search/location/zoom/print/export contracts, heavy renderer asset manifests, option normalization, pure state models, and framework-neutral browser rendering engine.
 
-Browser execution belongs inside core only when it remains framework-neutral TypeScript. DOM mounting, `HTMLElement` traversal, search highlights, zoom provider discovery, print windows, download triggers, Canvas, Worker, and WASM renderers must not depend on Vue, React, Svelte, or any component package. Framework component packages keep their own local controller, component lifecycle, toolbar/search/loading UI, and ecosystem interaction layer while depending on `@file-viewer/core` as the only shared base.
+Browser execution belongs inside core only when it remains framework-neutral TypeScript. DOM mounting, the standard browser shell and toolbar, `HTMLElement` traversal, search highlights, zoom provider discovery, print windows, download triggers, Canvas, Worker, and WASM renderers must not depend on Vue, React, Svelte, or any component package. Framework component packages keep their own component lifecycle, public type surface, compatibility defaults, and ecosystem interaction layer while depending on `@file-viewer/core` as the only shared base.
 
 `@file-viewer/core` is the only shared foundation package. It owns the headless contracts plus browser/renderers layers for the direct `createViewer(container, options)` engine, renderer registry, DOM provider registry, print layout helpers, browser asset resolution, and framework-neutral DOM/Canvas/Worker/WASM rendering contracts. Core source is public; the private Gitea aggregate remains available for the complete workspace, unified release automation, sponsorship, and priority support.
 
@@ -31,7 +31,7 @@ const pdfAssets = resolveFileViewerRendererAssets('pdf', {
 })
 ```
 
-Use `@file-viewer/core/browser` when a native component package or pure browser integration needs the direct DOM engine, renderer registry, search/zoom providers, print/export adapters, and framework-neutral Canvas/Worker/WASM renderers.
+Use `@file-viewer/core/browser` when a native component package or pure browser integration needs the shared browser shell and toolbar, direct DOM engine, renderer registry, search/zoom providers, print/export adapters, and framework-neutral Canvas/Worker/WASM renderers.
 
 ```ts
 import {
