@@ -16,8 +16,10 @@ export const DEFAULT_FILE_VIEWER_ARCHIVE_WORKER_PATH = 'vendor/libarchive/worker
 export const DEFAULT_FILE_VIEWER_ARCHIVE_WASM_PATH = 'vendor/libarchive/libarchive.wasm';
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH = 'vendor/docx/docx.worker.js';
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH = 'vendor/docx/jszip.min.js';
+export const DEFAULT_FILE_VIEWER_DOCX_RUNTIME_VERSION = '0.3.26';
 export const DEFAULT_FILE_VIEWER_PRESENTATION_WORKER_PATH = 'vendor/pptx/pptx.worker.js';
 export const DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH = 'vendor/ppt';
+export const DEFAULT_FILE_VIEWER_PPT_RUNTIME_VERSION = '0.3.2';
 export const DEFAULT_FILE_VIEWER_PPT_MODULE_PATH = `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/index.mjs`;
 export const DEFAULT_FILE_VIEWER_PPT_WORKER_PATH = `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/worker.mjs`;
 export const DEFAULT_FILE_VIEWER_PPT_FRAME_CACHE_PATH = `${DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH}/frame-cache.mjs`;
@@ -31,11 +33,17 @@ export const DEFAULT_FILE_VIEWER_PDF_STANDARD_FONT_PATH = 'vendor/pdf/standard_f
 export const DEFAULT_FILE_VIEWER_PDF_CJK_FONT_FALLBACK_PATH = 'vendor/pdf/fonts/';
 export const DEFAULT_FILE_VIEWER_DRAWIO_VIEWER_SCRIPT_PATH = 'vendor/drawio/viewer-static.min.js';
 export const DEFAULT_FILE_VIEWER_DRAWIO_ASSET_PATH = 'vendor/drawio/';
-export const DEFAULT_FILE_VIEWER_CAD_WASM_PATH = 'wasm/cad/';
-export const DEFAULT_FILE_VIEWER_CAD_WORKER_PATH = 'wasm/cad/dwg-worker.js';
-export const DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH = 'wasm/cad/dwfv-render.wasm';
-export const DEFAULT_FILE_VIEWER_CAD_LIBREDWG_SCRIPT_PATH = 'wasm/cad/libredwg-web.js';
-export const DEFAULT_FILE_VIEWER_CAD_LIBREDWG_WASM_PATH = 'wasm/cad/libredwg-web.wasm';
+export const DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION = '0.8.0';
+export const DEFAULT_FILE_VIEWER_CAD_WASM_PATH =
+  `wasm/cad/${DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION}/`;
+export const DEFAULT_FILE_VIEWER_CAD_WORKER_PATH =
+  `${DEFAULT_FILE_VIEWER_CAD_WASM_PATH}dwg-worker.js`;
+export const DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH =
+  `${DEFAULT_FILE_VIEWER_CAD_WASM_PATH}dwfv-render.wasm`;
+export const DEFAULT_FILE_VIEWER_CAD_LIBREDWG_SCRIPT_PATH =
+  `${DEFAULT_FILE_VIEWER_CAD_WASM_PATH}libredwg-web.js`;
+export const DEFAULT_FILE_VIEWER_CAD_LIBREDWG_WASM_PATH =
+  `${DEFAULT_FILE_VIEWER_CAD_WASM_PATH}libredwg-web.wasm`;
 export const DEFAULT_FILE_VIEWER_TYPST_COMPILER_WASM_URL =
   'wasm/typst/typst_ts_web_compiler_bg.wasm';
 export const DEFAULT_FILE_VIEWER_TYPST_RENDERER_WASM_URL =
@@ -555,6 +563,42 @@ export const DEFAULT_FILE_VIEWER_RENDERER_ASSET_MANIFESTS: readonly FileViewerRe
         defaultPath: DEFAULT_FILE_VIEWER_CAD_LIBREDWG_WASM_PATH,
         description: 'LibreDWG WebAssembly runtime loaded by the CAD DWG worker for offline parsing.',
       },
+      {
+        id: 'cad-legacy-dwg-worker',
+        rendererId: 'cad',
+        kind: 'worker',
+        target: 'public',
+        required: false,
+        defaultPath: 'wasm/cad/dwg-worker.js',
+        description: 'Unversioned compatibility alias for deployments that explicitly configured the former DWG worker path.',
+      },
+      {
+        id: 'cad-legacy-dwf-wasm',
+        rendererId: 'cad',
+        kind: 'wasm',
+        target: 'public',
+        required: false,
+        defaultPath: 'wasm/cad/dwfv-render.wasm',
+        description: 'Unversioned compatibility alias for deployments that explicitly configured the former DWF runtime path.',
+      },
+      {
+        id: 'cad-legacy-libredwg-script',
+        rendererId: 'cad',
+        kind: 'script',
+        target: 'public',
+        required: false,
+        defaultPath: 'wasm/cad/libredwg-web.js',
+        description: 'Unversioned compatibility alias for the former LibreDWG JavaScript runtime path.',
+      },
+      {
+        id: 'cad-legacy-libredwg-wasm',
+        rendererId: 'cad',
+        kind: 'wasm',
+        target: 'public',
+        required: false,
+        defaultPath: 'wasm/cad/libredwg-web.wasm',
+        description: 'Unversioned compatibility alias for the former LibreDWG WebAssembly runtime path.',
+      },
     ],
   },
   {
@@ -805,17 +849,30 @@ export const resolveFileViewerCadAssetUrls = (
   options?: Pick<FileViewerCadOptions, 'wasmPath' | 'workerUrl' | 'dwfWasmUrl'> | null,
   documentBaseUrl?: string
 ): ResolvedFileViewerCadAssetUrls => {
+  const workerUrl = resolveFileViewerAssetUrl(
+    options?.workerUrl,
+    DEFAULT_FILE_VIEWER_CAD_WORKER_PATH,
+    { documentBaseUrl }
+  );
+  const dwfWasmUrl = resolveFileViewerAssetUrl(
+    options?.dwfWasmUrl,
+    DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH,
+    { documentBaseUrl }
+  );
+  const versionDefaultRuntimeAsset = (url: string, overridden: boolean) => {
+    if (overridden) {
+      return url;
+    }
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}file-viewer-cad=${encodeURIComponent(DEFAULT_FILE_VIEWER_CAD_RUNTIME_VERSION)}`;
+  };
   return {
     wasmPath: resolveFileViewerAssetUrl(options?.wasmPath, DEFAULT_FILE_VIEWER_CAD_WASM_PATH, {
       documentBaseUrl,
       trimTrailingSlash: true,
     }),
-    workerUrl: resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_CAD_WORKER_PATH, {
-      documentBaseUrl,
-    }),
-    dwfWasmUrl: resolveFileViewerAssetUrl(options?.dwfWasmUrl, DEFAULT_FILE_VIEWER_CAD_DWF_WASM_PATH, {
-      documentBaseUrl,
-    }),
+    workerUrl: versionDefaultRuntimeAsset(workerUrl, Boolean(options?.workerUrl)),
+    dwfWasmUrl: versionDefaultRuntimeAsset(dwfWasmUrl, Boolean(options?.dwfWasmUrl)),
   };
 };
 
@@ -868,20 +925,30 @@ export const resolveFileViewerDocxWorkerUrl = (
   options?: Pick<FileViewerDocxOptions, 'workerUrl'> | null,
   documentBaseUrl?: string
 ) => {
-  return resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH, {
+  const resolved = resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH, {
     documentBaseUrl,
   });
+  if (options?.workerUrl) {
+    return resolved;
+  }
+  const separator = resolved.includes('?') ? '&' : '?';
+  return `${resolved}${separator}file-viewer-docx=${encodeURIComponent(DEFAULT_FILE_VIEWER_DOCX_RUNTIME_VERSION)}`;
 };
 
 export const resolveFileViewerDocxWorkerJsZipUrl = (
   options?: Pick<FileViewerDocxOptions, 'workerJsZipUrl'> | null,
   documentBaseUrl?: string
 ) => {
-  return resolveFileViewerAssetUrl(
+  const resolved = resolveFileViewerAssetUrl(
     options?.workerJsZipUrl,
     DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH,
     { documentBaseUrl }
   );
+  if (options?.workerJsZipUrl) {
+    return resolved;
+  }
+  const separator = resolved.includes('?') ? '&' : '?';
+  return `${resolved}${separator}file-viewer-docx=${encodeURIComponent(DEFAULT_FILE_VIEWER_DOCX_RUNTIME_VERSION)}`;
 };
 
 export const resolveFileViewerSpreadsheetWorkerUrl = (

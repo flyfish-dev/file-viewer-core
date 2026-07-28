@@ -9,7 +9,7 @@ export type FileViewerThemeMode = 'light' | 'dark' | 'system';
 
 export type FileViewerResolvedThemeMode = Exclude<FileViewerThemeMode, 'system'>;
 
-export type FileViewerLocale = 'auto' | 'zh-CN' | 'en-US' | (string & {});
+export type FileViewerLocale = 'auto' | 'zh-CN' | 'en-US' | 'ja-JP' | (string & {});
 
 export type FileViewerStyleIsolation = 'auto' | 'shadow' | 'scoped' | 'none';
 
@@ -332,6 +332,7 @@ export type FileViewerMessageKey =
   | 'cad.toolbar.zoomIn'
   | 'cad.layers.title'
   | 'cad.layers.count'
+  | 'cad.layers.merged'
   | 'cad.inspector.title'
   | 'cad.inspector.entities'
   | 'cad.inspector.blocks'

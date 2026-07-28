@@ -6,8 +6,10 @@ import type {
   FileViewerMessages,
   FileViewerOptions,
 } from '../contracts/types';
+import { JA_JP_MESSAGES } from './messages.ja';
 
-export type FileViewerResolvedLocale = 'zh-CN' | 'en-US';
+export const FILE_VIEWER_SUPPORTED_LOCALES = ['zh-CN', 'en-US', 'ja-JP'] as const;
+export type FileViewerResolvedLocale = typeof FILE_VIEWER_SUPPORTED_LOCALES[number];
 
 export interface ResolveFileViewerI18nInput {
   locale?: FileViewerLocale;
@@ -339,6 +341,7 @@ const ZH_CN_MESSAGES: Record<FileViewerMessageKey, string> = {
   'cad.toolbar.zoomIn': '放大',
   'cad.layers.title': '图层',
   'cad.layers.count': '{count} 项',
+  'cad.layers.merged': '{name}（已合并 {count} 个同名图层）',
   'cad.inspector.title': '结构',
   'cad.inspector.entities': '实体',
   'cad.inspector.blocks': '块',
@@ -763,6 +766,7 @@ const EN_US_MESSAGES: Record<FileViewerMessageKey, string> = {
   'cad.toolbar.zoomIn': 'Zoom in',
   'cad.layers.title': 'Layers',
   'cad.layers.count': '{count} items',
+  'cad.layers.merged': '{name} ({count} merged layers)',
   'cad.inspector.title': 'Structure',
   'cad.inspector.entities': 'Entities',
   'cad.inspector.blocks': 'Blocks',
@@ -871,25 +875,56 @@ const EN_US_MESSAGES: Record<FileViewerMessageKey, string> = {
 export const FILE_VIEWER_BUILTIN_MESSAGES = Object.freeze({
   'zh-CN': ZH_CN_MESSAGES,
   'en-US': EN_US_MESSAGES,
+  'ja-JP': JA_JP_MESSAGES,
 } satisfies Record<FileViewerResolvedLocale, Record<FileViewerMessageKey, string>>);
 
-const getBrowserLocale = (): string | undefined => {
-  const browserNavigator = typeof window !== 'undefined' ? window.navigator : undefined;
-  if (!browserNavigator) {
+const normalizeLocaleCandidate = (
+  locale?: string | null
+): FileViewerResolvedLocale | undefined => {
+  const normalized = String(locale || '').trim().replace(/_/g, '-').toLowerCase();
+  if (!normalized) {
     return undefined;
   }
-  return browserNavigator.languages?.[0] || browserNavigator.language;
+  if (normalized === 'zh' || normalized.startsWith('zh-')) {
+    return 'zh-CN';
+  }
+  if (normalized === 'ja' || normalized.startsWith('ja-')) {
+    return 'ja-JP';
+  }
+  if (normalized === 'en' || normalized.startsWith('en-')) {
+    return 'en-US';
+  }
+  return undefined;
+};
+
+const getBrowserLocales = (): string[] => {
+  const browserNavigator = typeof window !== 'undefined' ? window.navigator : undefined;
+  if (!browserNavigator) {
+    return [];
+  }
+  return Array.from(new Set([
+    ...(Array.isArray(browserNavigator.languages) ? browserNavigator.languages : []),
+    browserNavigator.language,
+  ].filter((value): value is string => typeof value === 'string' && Boolean(value.trim()))));
 };
 
 export const normalizeFileViewerLocale = (
   locale?: FileViewerLocale | null
 ): FileViewerResolvedLocale => {
-  const candidate = !locale || locale === 'auto'
-    ? getBrowserLocale()
-    : locale;
-  return String(candidate || FILE_VIEWER_DEFAULT_LOCALE).toLowerCase().startsWith('zh')
-    ? 'zh-CN'
-    : 'en-US';
+  if (locale && locale !== 'auto') {
+    return normalizeLocaleCandidate(locale) || FILE_VIEWER_FALLBACK_LOCALE;
+  }
+
+  const browserLocales = getBrowserLocales();
+  for (const candidate of browserLocales) {
+    const resolved = normalizeLocaleCandidate(candidate);
+    if (resolved) {
+      return resolved;
+    }
+  }
+  return browserLocales.length > 0
+    ? FILE_VIEWER_FALLBACK_LOCALE
+    : FILE_VIEWER_DEFAULT_LOCALE;
 };
 
 const getCustomMessages = (input?: FileViewerI18nInput): FileViewerMessages | undefined => {
@@ -918,7 +953,7 @@ export const translateFileViewerMessage = (
   const customMessage = typeof customMessages === 'function'
     ? customMessages(key, params, locale)
     : customMessages?.[key];
-  const message = customMessage || FILE_VIEWER_BUILTIN_MESSAGES[locale][key] || FILE_VIEWER_BUILTIN_MESSAGES[FILE_VIEWER_DEFAULT_LOCALE][key];
+  const message = customMessage || FILE_VIEWER_BUILTIN_MESSAGES[locale][key] || FILE_VIEWER_BUILTIN_MESSAGES[FILE_VIEWER_FALLBACK_LOCALE][key] || FILE_VIEWER_BUILTIN_MESSAGES[FILE_VIEWER_DEFAULT_LOCALE][key];
   return formatFileViewerMessage(message, params);
 };
 

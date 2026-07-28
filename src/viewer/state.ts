@@ -43,9 +43,19 @@ export const DEFAULT_FILE_VIEWER_STATE_THEME: FileViewerStateTheme = Object.free
 export const DEFAULT_FILE_VIEWER_UNSUPPORTED_DESCRIPTION =
   '支持 Office、PDF、OFD、Typst、压缩包、邮件、OLB/DRA、CAD、地理数据、3D 模型、Excalidraw、draw.io、EPUB、UMD、Markdown、代码/文本、图片、音视频、字体和数据资产的在线预览';
 
-const extensionLabel = (extension: string) => {
+const extensionLabel = (extension: string, i18n?: FileViewerI18nInput) => {
   const normalized = normalizeFileExtension(extension);
-  return normalized ? `.${normalized}` : '当前';
+  if (normalized) {
+    return `.${normalized}`;
+  }
+  const locale = resolveFileViewerLocale(i18n);
+  if (locale === 'zh-CN') {
+    return '当前文件';
+  }
+  if (locale === 'ja-JP') {
+    return '現在のファイル';
+  }
+  return 'current file';
 };
 
 const rendererPackageById: Record<string, string> = {
@@ -242,14 +252,16 @@ export const createFileViewerUnsupportedState = (
   theme: FileViewerStateTheme = DEFAULT_FILE_VIEWER_STATE_THEME,
   i18n?: FileViewerI18nInput
 ) => {
-  const label = extensionLabel(extension);
+  const label = extensionLabel(extension, i18n);
   const installHint = resolveFileViewerRendererInstallHint(extension);
   if (installHint) {
     const locale = resolveFileViewerLocale(i18n);
     const localeRendererTip = installHint.rendererPackage
       ? locale === 'zh-CN'
         ? `；如果需要极致裁剪，也可以只安装 ${installHint.rendererPackage}`
-        : `; for a strict custom cut, install only ${installHint.rendererPackage}`
+        : locale === 'ja-JP'
+          ? `；厳密に最小構成へ絞る場合は ${installHint.rendererPackage} のみをインストールすることもできます`
+          : `; for a strict custom cut, install only ${installHint.rendererPackage}`
       : '';
     return createFileViewerStateDescriptor({
       state: 'unsupported',
@@ -354,9 +366,9 @@ export const formatFileViewerErrorMessage: FileViewerErrorMessageFormatter = (pr
   if (!detail) {
     return prefix;
   }
-  return resolveFileViewerLocale(i18n) === 'zh-CN'
-    ? `${prefix}：${detail}`
-    : `${prefix}: ${detail}`;
+  return resolveFileViewerLocale(i18n) === 'en-US'
+    ? `${prefix}: ${detail}`
+    : `${prefix}：${detail}`;
 };
 
 export const createFileViewerErrorState = (

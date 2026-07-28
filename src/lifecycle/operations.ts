@@ -148,7 +148,8 @@ export interface ResolveFileViewerOperationAvailabilityInput {
 
 export interface ResolveFileViewerToolbarStateInput extends ResolveFileViewerOperationAvailabilityInput {
   toolbar: FileViewerToolbarOptions;
-  options?: Pick<FileViewerOptions, 'toolbar'>;
+  options?: Pick<FileViewerOptions, 'toolbar' | 'search'>;
+  searchAvailable?: boolean;
   loading?: boolean;
 }
 
@@ -311,6 +312,7 @@ export interface CreateFileViewerToolbarControllerActionHandlersInput {
   getHasError?: () => boolean;
   getLoading?: () => boolean;
   getOptions?: () => FileViewerOptions | undefined;
+  getSearchAvailable?: () => boolean;
   getSourceUrl?: () => string | null | undefined;
   getToolbar: () => FileViewerToolbarOptions;
   getRenderedReady: () => boolean;
@@ -1004,6 +1006,7 @@ export const createFileViewerToolbarControllerActionHandlers = ({
   getHasError = () => false,
   getLoading = () => false,
   getOptions,
+  getSearchAvailable = () => true,
   getSourceUrl = () => null,
   getToolbar,
   getRenderedReady,
@@ -1028,6 +1031,7 @@ export const createFileViewerToolbarControllerActionHandlers = ({
       zoomState: getZoomState(),
       toolbar: getToolbar(),
       options: getOptions?.(),
+      searchAvailable: getSearchAvailable(),
       loading: getLoading(),
     });
     return currentToolbarState;
@@ -1140,19 +1144,28 @@ export const cloneFileViewerOperationAvailability = (
 
 export const resolveVisibleFileViewerToolbar = (
   toolbar: FileViewerToolbarOptions,
-  availability: FileViewerOperationAvailability
+  availability: FileViewerOperationAvailability,
+  searchEnabled = true
 ): FileViewerToolbarOptions => {
   return {
     download: toolbar.download && availability.download,
     print: toolbar.print && availability.print,
     exportHtml: toolbar.exportHtml && availability.exportHtml,
     zoom: toolbar.zoom && availability.zoom,
+    search: toolbar.search !== false && searchEnabled,
     theme: toolbar.theme !== false,
   };
 };
 
 export const hasVisibleFileViewerToolbarActions = (toolbar: FileViewerToolbarOptions) => {
-  return !!(toolbar.download || toolbar.print || toolbar.exportHtml || toolbar.zoom || toolbar.theme);
+  return !!(
+    toolbar.download ||
+    toolbar.print ||
+    toolbar.exportHtml ||
+    toolbar.zoom ||
+    toolbar.search ||
+    toolbar.theme
+  );
 };
 
 export const isFileViewerZoomButtonDisabled = ({
@@ -1188,6 +1201,7 @@ export const isFileViewerToolbarDisabled = ({
 export const resolveFileViewerToolbarState = ({
   toolbar,
   options,
+  searchAvailable = true,
   loading = false,
   ...availabilityInput
 }: ResolveFileViewerToolbarStateInput): FileViewerToolbarState => {
@@ -1195,7 +1209,11 @@ export const resolveFileViewerToolbarState = ({
     resolveFileViewerOperationAvailability(availabilityInput),
     options?.toolbar
   );
-  const visibleToolbar = resolveVisibleFileViewerToolbar(toolbar, operationAvailability);
+  const visibleToolbar = resolveVisibleFileViewerToolbar(
+    toolbar,
+    operationAvailability,
+    options?.search !== false && searchAvailable
+  );
 
   return {
     operationAvailability,
