@@ -530,6 +530,7 @@ export const createFileViewerOperationActionHandlers = ({
           i18n: resolveI18n(),
           color: options.mask?.color,
           initialRegions: options.mask?.regions,
+          initialStamps: options.mask?.stamps,
         });
         if (!result?.mask) {
           return undefined;

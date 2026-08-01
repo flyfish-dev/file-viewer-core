@@ -799,6 +799,7 @@ export const createViewer = (
         i18n: options,
         color: printOptions.mask?.color,
         initialRegions: printOptions.mask?.regions,
+        initialStamps: printOptions.mask?.stamps,
       });
       if (!result?.mask) {
         return;

@@ -14,6 +14,23 @@ Current framework-neutral browser renderers still inside core are limited to the
 npm install @file-viewer/core
 ```
 
+## Preflight Before Rendering
+
+`precheckFileViewerSource()` does not create a viewer or load a heavy renderer. It checks whether the extension is available and validates known PDF, OpenXML / OpenDocument, legacy OLE Office, and RTF signatures or package parts. `valid: null` explicitly means capability-only detection, not a full parse; the real renderer remains the final authority for malformed content.
+
+```ts
+import { precheckFileViewerSource } from '@file-viewer/core/headless'
+
+const result = await precheckFileViewerSource(file, {
+  // Restrict this to the extensions actually installed by this product.
+  supportedExtensions: ['pdf', 'docx', 'xlsx', 'pptx']
+})
+
+if (!result.previewable) {
+  console.warn(result.reason, result.missingParts)
+}
+```
+
 ## Entry points
 
 Use `@file-viewer/core/headless` when a component package, server-side helper, or build script only needs framework-neutral contracts: format support, source normalization, renderer capability metadata, lifecycle/operation context, option normalization, state helpers, and static asset resolution. This entry intentionally does not expose the DOM viewer engine or browser renderers.

@@ -36,13 +36,18 @@ const imageStyle = `
 .image-viewer{position:relative;width:100%;height:100%;overflow:auto;background:var(--file-viewer-render-surface-background,#eef1f4);box-sizing:border-box}
 .image-stage{min-width:100%;min-height:100%;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box}
 .image-stage img{display:block;width:auto;max-width:none;margin:0 auto;border:0;box-shadow:0 18px 48px rgba(15,23,42,.16);background:#fff;cursor:zoom-in}
-.image-lightbox{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:40px;background:rgba(15,23,42,.88);box-sizing:border-box}
-.image-lightbox[hidden]{display:none}
-.image-lightbox img{display:block;max-width:100%;max-height:100%;object-fit:contain;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.4);cursor:zoom-out}
-.image-lightbox button{position:absolute;top:20px;right:20px;width:40px;height:40px;border:0;border-radius:999px;background:rgba(255,255,255,.92);color:#172033;font-size:24px;line-height:40px;cursor:pointer;box-shadow:0 12px 28px rgba(0,0,0,.18)}
+.image-stage img:focus-visible{outline:3px solid #2563eb;outline-offset:4px}
+.image-lightbox{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:40px;background:rgba(15,23,42,.9);box-sizing:border-box;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,visibility 0s linear .18s}
+.image-lightbox[data-open='true']{opacity:1;visibility:visible;pointer-events:auto;transition-delay:0s}
+.image-lightbox img{display:block;max-width:100%;max-height:100%;object-fit:contain;background:#fff;box-shadow:0 30px 80px rgba(0,0,0,.4);cursor:default;transform:scale(.985);transition:transform .18s ease}
+.image-lightbox[data-open='true'] img{transform:scale(1)}
+.image-lightbox button{position:absolute;top:16px;right:16px;display:grid;width:40px;height:40px;place-items:center;padding:0;border:1px solid rgba(255,255,255,.7);border-radius:999px;background:rgba(255,255,255,.96);color:#172033;font:400 27px/1 Arial,sans-serif;cursor:pointer;box-shadow:0 12px 28px rgba(0,0,0,.24);transition:background-color .14s ease,transform .14s ease}
+.image-lightbox button:hover{background:#fff;transform:scale(1.04)}
+.image-lightbox button:focus-visible{outline:3px solid #60a5fa;outline-offset:2px}
 [data-viewer-theme='dark'] .image-viewer{background:var(--file-viewer-render-surface-background,#101820)}
 @media (prefers-color-scheme:dark){[data-viewer-theme='system'] .image-viewer{background:var(--file-viewer-render-surface-background,#101820)}}
 @media (max-width:767px){.image-stage{padding:12px}.image-lightbox{padding:16px}.image-lightbox button{top:12px;right:12px}}
+@media (prefers-reduced-motion:reduce){.image-lightbox,.image-lightbox img,.image-lightbox button{transition:none}}
 `;
 
 const createStyle = (documentRef: Document) => {
@@ -93,9 +98,10 @@ const createLightbox = (
 ) => {
   const lightbox = documentRef.createElement('div');
   lightbox.className = 'image-lightbox';
-  lightbox.hidden = true;
+  lightbox.dataset.open = 'false';
   lightbox.setAttribute('role', 'dialog');
   lightbox.setAttribute('aria-modal', 'true');
+  lightbox.setAttribute('aria-hidden', 'true');
 
   const image = documentRef.createElement('img');
   image.alt = t('image.lightbox.alt');
@@ -104,29 +110,47 @@ const createLightbox = (
   const closeButton = documentRef.createElement('button');
   closeButton.type = 'button';
   closeButton.setAttribute('aria-label', t('image.lightbox.close'));
-  closeButton.textContent = 'x';
+  closeButton.textContent = '×';
 
+  let previousFocus: HTMLElement | null = null;
   const close = () => {
-    lightbox.hidden = true;
+    if (lightbox.dataset.open !== 'true') return;
+    lightbox.dataset.open = 'false';
+    lightbox.setAttribute('aria-hidden', 'true');
+    if (previousFocus?.isConnected) {
+      previousFocus.focus({ preventScroll: true });
+    }
+    previousFocus = null;
+  };
+  const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === 'Escape' && lightbox.dataset.open === 'true') {
+      event.preventDefault();
+      close();
+    }
   };
 
   closeButton.addEventListener('click', close);
-  image.addEventListener('click', close);
   lightbox.addEventListener('click', event => {
     if (event.target === lightbox) {
       close();
     }
   });
+  documentRef.addEventListener('keydown', onKeyDown);
   lightbox.append(image, closeButton);
 
   return {
     element: lightbox,
-    open() {
-      lightbox.hidden = false;
+    open(invoker?: HTMLElement | null) {
+      previousFocus =
+        invoker ||
+        (documentRef.activeElement instanceof HTMLElement ? documentRef.activeElement : null);
+      lightbox.dataset.open = 'true';
+      lightbox.setAttribute('aria-hidden', 'false');
+      closeButton.focus({ preventScroll: true });
     },
     destroy() {
       closeButton.removeEventListener('click', close);
-      image.removeEventListener('click', close);
+      documentRef.removeEventListener('keydown', onKeyDown);
       lightbox.remove();
     },
   };
@@ -160,12 +184,22 @@ export default async function renderImage(
   const image = documentRef.createElement('img');
   image.alt = t('image.alt');
   image.src = src;
+  image.tabIndex = 0;
+  image.setAttribute('role', 'button');
+  image.setAttribute('aria-haspopup', 'dialog');
   stage.append(image);
   root.append(stage);
 
   const lightbox = createLightbox(documentRef, src, t);
-  const openLightbox = () => lightbox.open();
+  const openLightbox = () => lightbox.open(image);
+  const openLightboxFromKeyboard = (event: KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      lightbox.open(image);
+    }
+  };
   image.addEventListener('click', openLightbox);
+  image.addEventListener('keydown', openLightboxFromKeyboard);
 
   const getMinScale = () => Math.min(0.1, fitScale || 0.1);
   const clampScale = (value: number) => {
@@ -298,6 +332,7 @@ export default async function renderImage(
       resizeObserver.disconnect();
       image.removeEventListener('load', updateViewportSize);
       image.removeEventListener('click', openLightbox);
+      image.removeEventListener('keydown', openLightboxFromKeyboard);
       lightbox.destroy();
       target.replaceChildren();
     },

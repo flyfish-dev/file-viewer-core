@@ -328,6 +328,7 @@ export const buildExportHtmlDocument = ({
     ? {
         ...normalizedMask,
         regions: normalizedMask.regions?.filter(region => region.pageIndex === undefined),
+        stamps: normalizedMask.stamps?.filter(stamp => stamp.pageIndex === undefined),
       }
     : null
   const maskHtml = buildFileViewerPrintMaskOverlayHtml(globalMask)

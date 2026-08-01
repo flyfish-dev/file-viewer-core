@@ -14,6 +14,23 @@ Current framework-neutral browser renderers still inside core are limited to the
 npm install @file-viewer/core
 ```
 
+## 渲染前预检
+
+`precheckFileViewerSource()` 不会创建 viewer，也不会加载重型 renderer。它先检查当前扩展名是否在能力范围内，并对 PDF、OpenXML / OpenDocument、旧版 OLE Office、RTF 等格式执行签名或包结构检查。`valid: null` 明确表示该格式只有能力检查、没有做完整解析；真实 renderer 仍是畸形文件的最终判断者。
+
+```ts
+import { precheckFileViewerSource } from '@file-viewer/core/headless'
+
+const result = await precheckFileViewerSource(file, {
+  // 可传当前产品实际安装的扩展名列表，避免把未装 preset 的格式报成可预览
+  supportedExtensions: ['pdf', 'docx', 'xlsx', 'pptx']
+})
+
+if (!result.previewable) {
+  console.warn(result.reason, result.missingParts)
+}
+```
+
 ## Entry points
 
 Use `@file-viewer/core/headless` when a component package, server-side helper or build script only needs framework-neutral contracts: format support, source normalization, renderer capability metadata, lifecycle/operation context, option normalization, state helpers and static asset resolution. This entry intentionally does not expose the DOM viewer engine or browser renderers.

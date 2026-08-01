@@ -91,6 +91,14 @@ export {
   TEXT_EXTENSIONS,
 } from './registry/formats';
 
+export { precheckFileViewerSource } from './source/precheck';
+export type {
+  FileViewerPrecheckOptions,
+  FileViewerPrecheckReason,
+  FileViewerPrecheckResult,
+  FileViewerPrecheckStatus,
+} from './source/precheck';
+
 export {
   FILE_VIEWER_BEFORE_OPERATION_ERROR_PREFIX,
   DEFAULT_FILE_VIEWER_TOOLBAR_ORDER,
@@ -455,9 +463,15 @@ export type {
   FileViewerOperationContext,
   FileViewerOperationType,
   FileViewerOptions,
+  FileViewerPdfBoundingBox,
+  FileViewerPdfBoundingBoxOrigin,
+  FileViewerPdfBoundingBoxUnit,
   FileViewerPdfOptions,
   FileViewerPresentationOptions,
+  FileViewerPrintMaskOptions,
+  FileViewerPrintMaskRegion,
   FileViewerPrintOptions,
+  FileViewerPrintStamp,
   FileViewerPublicApi,
   FileViewerRenderStateKind,
   FileViewerRenderedInstance,

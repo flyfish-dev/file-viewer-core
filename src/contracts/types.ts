@@ -30,6 +30,9 @@ export type FileViewerMessageKey =
   | 'toolbar.printMaskCancel'
   | 'toolbar.printMaskConfirm'
   | 'toolbar.printMaskHint'
+  | 'toolbar.printStampUpload'
+  | 'toolbar.printStampRemove'
+  | 'toolbar.printStampResize'
   | 'toolbar.exportHtml'
   | 'toolbar.exportHtmlTitle'
   | 'toolbar.search'
@@ -342,6 +345,9 @@ export type FileViewerMessageKey =
   | 'cad.state.parsing'
   | 'cad.error.parseFailed'
   | 'image.alt'
+  | 'image.toolbar.rotation'
+  | 'image.toolbar.rotateLeft'
+  | 'image.toolbar.rotateRight'
   | 'image.lightbox.alt'
   | 'image.lightbox.close'
   | 'gitBundle.error.invalid'
@@ -608,6 +614,12 @@ export interface FileViewerPdfOptions {
   thumbnails?: boolean;
   rotation?: number;
   /**
+   * Highlights and focuses one or more PDF regions after the document loads.
+   * Use `pixel` with `sourceWidth` / `sourceHeight` for OCR coordinates, or
+   * `pdf-point` for native PDF coordinates. Page numbers are one-based.
+   */
+  bbox?: FileViewerPdfBoundingBox | readonly FileViewerPdfBoundingBox[];
+  /**
    * Initial PDF view position. Prefer the top-level `initialViewState` when the
    * same state should be passed through framework-neutral viewer APIs.
    */
@@ -642,6 +654,32 @@ export interface FileViewerPdfOptions {
    * the bundled font license. The path is resolved against the document base.
    */
   cjkFontFallbackPath?: string;
+}
+
+export type FileViewerPdfBoundingBoxUnit = 'ratio' | 'percent' | 'pixel' | 'pdf-point';
+
+export type FileViewerPdfBoundingBoxOrigin = 'top-left' | 'bottom-left';
+
+export interface FileViewerPdfBoundingBox {
+  id?: string;
+  /** One-based PDF page number. Defaults to the current page, then page 1. */
+  page?: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Defaults to `pdf-point`. */
+  unit?: FileViewerPdfBoundingBoxUnit;
+  /** Defaults to `bottom-left` for PDF points and `top-left` otherwise. */
+  origin?: FileViewerPdfBoundingBoxOrigin;
+  /** Required when `unit` is `pixel`; this is the OCR/source image width. */
+  sourceWidth?: number;
+  /** Required when `unit` is `pixel`; this is the OCR/source image height. */
+  sourceHeight?: number;
+  /** CSS color used for the outline and translucent fill. */
+  color?: string;
+  /** Optional accessible description for the highlighted region. */
+  label?: string;
 }
 
 export interface FileViewerDocxOptions {
@@ -862,14 +900,21 @@ export type FileViewerGeoBasemapPreset =
   | 'openfreemap-positron'
   | 'openfreemap-dark'
   | 'openfreemap-fiord'
-  | 'osm-raster';
+  | 'osm-raster'
+  | 'tianditu-vector'
+  | 'tianditu-imagery'
+  | 'tianditu-terrain';
+
+export type FileViewerTiandituMapStyle = 'vector' | 'imagery' | 'terrain';
 
 export interface FileViewerGeoBasemapOptions {
   /**
    * `raster` uses XYZ/TMS image tiles. `vector-style` uses a MapLibre style
    * object or URL, which is the best path for OpenFreeMap/OpenMapTiles stacks.
+   * `tianditu` builds the official base and annotation raster layers from the
+   * caller-provided Tianditu token.
    */
-  type?: 'raster' | 'vector-style';
+  type?: 'raster' | 'vector-style' | 'tianditu';
   /**
    * Raster XYZ/TMS tile template, for example `/tiles/{z}/{x}/{y}.png`.
    */
@@ -893,6 +938,12 @@ export interface FileViewerGeoBasemapOptions {
   maxZoom?: number;
   scheme?: 'xyz' | 'tms';
   rasterOpacity?: number;
+  /** Tianditu API token. Required when `type` is `tianditu`. */
+  token?: string;
+  /** Tianditu map family. Defaults to `vector`. */
+  mapStyle?: FileViewerTiandituMapStyle;
+  /** Include the matching Tianditu annotation layer. Defaults to true. */
+  labels?: boolean;
 }
 
 export interface FileViewerGeoOptions {
@@ -919,6 +970,11 @@ export interface FileViewerGeoOptions {
    * self-hosted or intranet style/tile URL.
    */
   basemap?: false | FileViewerGeoBasemapPreset | FileViewerGeoBasemapOptions;
+  /**
+   * Tianditu API token used by the `tianditu-*` presets. The viewer never
+   * supplies or persists a token; obtain one for the deployment's own domain.
+   */
+  tiandituToken?: string;
   /**
    * Defaults to true. When no CRS is declared and coordinates exceed longitude
    * or latitude ranges, the geo renderer treats Web Mercator-sized values as
@@ -1516,9 +1572,22 @@ export interface FileViewerPrintMaskRegion {
   pageIndex?: number;
 }
 
+/** Page-aware image placed above rendered content for printing, such as a seal or signature. */
+export interface FileViewerPrintStamp extends FileViewerPrintMaskRegion {
+  /** Image URL. Uploaded stamps are converted to a local data URL by the designer. */
+  src: string;
+  /** Image opacity from 0 to 1. Defaults to 1. */
+  opacity?: number;
+  /** Clockwise rotation in degrees. Defaults to 0. */
+  rotate?: number;
+  alt?: string;
+}
+
 export interface FileViewerPrintMaskOptions {
   /** Solid black cover blocks, matching common OFD/business redaction UX. */
   regions?: FileViewerPrintMaskRegion[];
+  /** Image overlays, including locally uploaded seals and signatures. */
+  stamps?: FileViewerPrintStamp[];
   /** Fill color for print masks. Defaults to opaque black. */
   color?: string;
 }

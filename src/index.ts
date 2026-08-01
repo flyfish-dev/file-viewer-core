@@ -78,6 +78,13 @@ export {
   MODEL_EXTENSIONS,
   TEXT_EXTENSIONS,
 } from './registry/formats';
+export { precheckFileViewerSource } from './source/precheck';
+export type {
+  FileViewerPrecheckOptions,
+  FileViewerPrecheckReason,
+  FileViewerPrecheckResult,
+  FileViewerPrecheckStatus,
+} from './source/precheck';
 export {
   DEFAULT_FILE_VIEWER_TEXT_CHUNK_OVERLAP,
   DEFAULT_FILE_VIEWER_TEXT_CHUNK_SIZE,
@@ -844,6 +851,7 @@ export {
   applyFileViewerPagePrintMasksToHtml,
   normalizeFileViewerPrintMaskOptions,
   normalizeFileViewerPrintMaskRegion,
+  normalizeFileViewerPrintStamp,
   FILE_VIEWER_PRINT_MASK_STYLE,
 } from './features/printMask';
 export {
@@ -1095,6 +1103,7 @@ export type {
   FileViewerGeoBasemapOptions,
   FileViewerGeoBasemapPreset,
   FileViewerGeoOptions,
+  FileViewerTiandituMapStyle,
   FileRenderContext,
   FileRenderExportAdapter,
   FileRenderThumbnailAdapter,
@@ -1119,9 +1128,15 @@ export type {
   FileViewerOperationContext,
   FileViewerOperationType,
   FileViewerOptions,
+  FileViewerPdfBoundingBox,
+  FileViewerPdfBoundingBoxOrigin,
+  FileViewerPdfBoundingBoxUnit,
   FileViewerPdfOptions,
   FileViewerPresentationOptions,
   FileViewerPrintOptions,
+  FileViewerPrintMaskOptions,
+  FileViewerPrintMaskRegion,
+  FileViewerPrintStamp,
   FileViewerPublicApi,
   FileViewerRenderedInstance,
   FileViewerRendererMode,
