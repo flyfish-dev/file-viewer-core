@@ -132,6 +132,12 @@ export type FileViewerMessageKey =
   | 'word.page.empty'
   | 'word.body'
   | 'word.body.empty'
+  | 'ofd.toolbar.pageNavigation'
+  | 'ofd.toolbar.documentPages'
+  | 'ofd.toolbar.previousPage'
+  | 'ofd.toolbar.nextPage'
+  | 'ofd.toolbar.pageStatus'
+  | 'ofd.toolbar.noPages'
   | 'ofd.state.loading'
   | 'ofd.error.empty'
   | 'ofd.error.parseFailed'
@@ -700,6 +706,8 @@ export interface FileViewerDocxOptions {
   updatePageReferences?: boolean;
   hideWebHiddenContent?: boolean;
   ignoreLastRenderedPageBreak?: boolean;
+  /** External DOCX links are blocked by default; internal bookmark links remain active. */
+  externalLinkPolicy?: 'allow' | 'block';
   /** Overrides automatic DOCX dark rendering derived from the viewer theme. */
   darkMode?: boolean;
 }
