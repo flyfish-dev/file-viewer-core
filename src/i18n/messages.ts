@@ -7,8 +7,9 @@ import type {
   FileViewerOptions,
 } from '../contracts/types';
 import { JA_JP_MESSAGES } from './messages.ja';
+import { DE_DE_MESSAGES } from './messages.de';
 
-export const FILE_VIEWER_SUPPORTED_LOCALES = ['zh-CN', 'en-US', 'ja-JP'] as const;
+export const FILE_VIEWER_SUPPORTED_LOCALES = ['zh-CN', 'en-US', 'ja-JP', 'de-DE'] as const;
 export type FileViewerResolvedLocale = typeof FILE_VIEWER_SUPPORTED_LOCALES[number];
 
 export interface ResolveFileViewerI18nInput {
@@ -208,6 +209,18 @@ const ZH_CN_MESSAGES: Record<FileViewerMessageKey, string> = {
   'media.video.title': '视频预览',
   'media.video.unsupported': '当前浏览器不支持该视频格式。',
   'media.video.hlsHint': 'HLS 会优先使用原始 URL 加载分片；如果传入的是本地单文件清单，请确保分片地址可被浏览器访问。',
+  'media.video.codecUnsupportedBadge': '视频编码不兼容',
+  'media.video.codecUnsupportedTitle': '当前浏览器无法解码这个视频轨',
+  'media.video.codecUnsupportedDescription': '文件的视频轨使用 {codec}。浏览器能读取 MP4 容器，但没有解码出画面，因此原生播放器可能只播放音频或显示黑屏。',
+  'media.video.codecUnsupportedAction': '轻量软件解码器未能启动，请将视频转换为 H.264/AVC、VP9 或 AV1 后再预览；File Viewer 不会上传或修改原文件。',
+  'media.video.softwareLoading': '正在按需加载轻量 MP4V 解码器…',
+  'media.video.softwareBadge': 'MP4V · 轻量解码',
+  'media.video.play': '播放',
+  'media.video.pause': '暂停',
+  'media.video.seek': '视频进度',
+  'media.video.mute': '静音',
+  'media.video.unmute': '取消静音',
+  'media.video.fullscreen': '全屏',
   'media.midi.title': 'MIDI 文件',
   'media.midi.loading': '正在解析 MIDI 轨道...',
   'media.midi.trackHeader': '轨道',
@@ -648,6 +661,18 @@ const EN_US_MESSAGES: Record<FileViewerMessageKey, string> = {
   'media.video.title': 'Video preview',
   'media.video.unsupported': 'This browser does not support this video format.',
   'media.video.hlsHint': 'HLS prefers the original URL for segment loading. If the input is a local single-file playlist, make sure segment URLs are reachable by the browser.',
+  'media.video.codecUnsupportedBadge': 'Incompatible video codec',
+  'media.video.codecUnsupportedTitle': 'This browser cannot decode the video track',
+  'media.video.codecUnsupportedDescription': 'The video track uses {codec}. The browser can read the MP4 container but cannot decode video frames, so the native player may play only audio or show a black screen.',
+  'media.video.codecUnsupportedAction': 'The lightweight software decoder could not start. Convert the video to H.264/AVC, VP9, or AV1 and open it again. File Viewer does not upload or modify the original file.',
+  'media.video.softwareLoading': 'Loading the lightweight MP4V decoder on demand…',
+  'media.video.softwareBadge': 'MP4V · lightweight decode',
+  'media.video.play': 'Play',
+  'media.video.pause': 'Pause',
+  'media.video.seek': 'Video progress',
+  'media.video.mute': 'Mute',
+  'media.video.unmute': 'Unmute',
+  'media.video.fullscreen': 'Full screen',
   'media.midi.title': 'MIDI file',
   'media.midi.loading': 'Parsing MIDI tracks...',
   'media.midi.trackHeader': 'Track',
@@ -906,6 +931,7 @@ export const FILE_VIEWER_BUILTIN_MESSAGES = Object.freeze({
   'zh-CN': ZH_CN_MESSAGES,
   'en-US': EN_US_MESSAGES,
   'ja-JP': JA_JP_MESSAGES,
+  'de-DE': DE_DE_MESSAGES,
 } satisfies Record<FileViewerResolvedLocale, Record<FileViewerMessageKey, string>>);
 
 const normalizeLocaleCandidate = (
@@ -920,6 +946,9 @@ const normalizeLocaleCandidate = (
   }
   if (normalized === 'ja' || normalized.startsWith('ja-')) {
     return 'ja-JP';
+  }
+  if (normalized === 'de' || normalized.startsWith('de-')) {
+    return 'de-DE';
   }
   if (normalized === 'en' || normalized.startsWith('en-')) {
     return 'en-US';
