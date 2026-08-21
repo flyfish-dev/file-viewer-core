@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-20T09:47:58.698Z",
+  "generatedAt": "2026-08-21T07:31:55.711Z",
   "sourceBranch": "main",
-  "sourceCommit": "8af1acbc",
+  "sourceCommit": "7bbd1cc4",
   "organization": "flyfish-dev",
   "packageName": "@file-viewer/core",
   "packageVersion": "2.3.0",
