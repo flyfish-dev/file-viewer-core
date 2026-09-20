@@ -3,6 +3,8 @@
 // Keep this layer declarative: no DOM reads, renderer imports, or async loading
 // should be introduced here. Higher layers depend on these contracts, never the
 // other way around.
+import type { FileViewerXmlOptions } from './xml'
+
 export type FileViewerSourceKind = 'file' | 'url' | 'buffer' | 'empty'
 
 export type FileViewerThemeMode = 'light' | 'dark' | 'system'
@@ -1645,6 +1647,14 @@ export interface FileViewerOptions {
   docx?: FileViewerDocxOptions
   presentation?: FileViewerPresentationOptions
   spreadsheet?: FileViewerSpreadsheetOptions
+  /** Image renderer controls; also applies to multipage TIFF previews. */
+  image?: {
+    /**
+     * Show rotation controls and allow view-state rotation. Defaults to true.
+     * Set false for compact previews. Decoder/EXIF orientation is unchanged.
+     */
+    rotation?: boolean
+  }
   iwork?: FileViewerIworkOptions
   wordPerfect?: FileViewerWordPerfectOptions
   hangul?: FileViewerHangulOptions
@@ -1654,6 +1664,8 @@ export interface FileViewerOptions {
   geo?: FileViewerGeoOptions
   data?: FileViewerDataOptions
   binary?: FileViewerBinaryInspectorOptions
+  /** Configuration for the explicitly installed XML profile renderer. */
+  xml?: FileViewerXmlOptions
   design?: FileViewerDesignOptions
   drawing?: FileViewerDrawingOptions
   cad?: FileViewerCadOptions
