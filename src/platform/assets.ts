@@ -27,7 +27,7 @@ export const DEFAULT_FILE_VIEWER_CHM_WASM_PATH = 'vendor/chm/chm_wasm_bg.wasm';
 export const DEFAULT_FILE_VIEWER_CHM_WASM_PACKAGE_PATH = '@file-viewer/renderer-chm/wasm/chm_wasm_bg.wasm';
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_PATH = 'vendor/docx/docx.worker.js';
 export const DEFAULT_FILE_VIEWER_DOCX_WORKER_JSZIP_PATH = 'vendor/docx/jszip.min.js';
-export const DEFAULT_FILE_VIEWER_DOCX_RUNTIME_VERSION = '0.3.42';
+export const DEFAULT_FILE_VIEWER_DOCX_RUNTIME_VERSION = '0.3.43';
 export const DEFAULT_FILE_VIEWER_PRESENTATION_WORKER_PATH = 'vendor/pptx/pptx.worker.js';
 export const DEFAULT_FILE_VIEWER_PPT_RUNTIME_PATH = 'vendor/ppt';
 export const DEFAULT_FILE_VIEWER_PPT_RUNTIME_VERSION = '1.0.2';
@@ -1677,9 +1677,13 @@ export const resolveFileViewerSpreadsheetWorkerUrl = (
   options?: Pick<FileViewerSpreadsheetOptions, 'workerUrl'> | null,
   documentBaseUrl?: string
 ) => {
-  return resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH, {
+  const resolved = resolveFileViewerAssetUrl(options?.workerUrl, DEFAULT_FILE_VIEWER_SPREADSHEET_WORKER_PATH, {
     documentBaseUrl,
   });
+  if (options?.workerUrl) return resolved;
+  // Use the workbook-password protocol even if a browser cached an earlier Worker.
+  const separator = resolved.includes('?') ? '&' : '?';
+  return `${resolved}${separator}file-viewer-xlsx=2`;
 };
 
 export const resolveFileViewerIworkWorkerUrl = (
